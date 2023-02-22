@@ -1,58 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML Games - Home</title>
-    <style>
-      body {
-        background-color: #f2f2f2;
-        font-family: Arial, sans-serif;
-        margin: 0;
-      }
-      header {
-        background-color: #333;
-        color: #fff;
-        padding: 20px;
-        text-align: center;
-      }
-      h1 {
-        margin: 0;
-        font-size: 36px;
-      }
-      .container {
-        margin: 20px auto;
-        max-width: 600px;
-        padding: 0 20px;
-      }
-      .game-link {
-        background-color: #fff;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        display: block;
-        margin-bottom: 10px;
-        padding: 10px;
-        text-align: center;
-        text-decoration: none;
-        transition: all 0.2s ease-in-out;
-      }
-      .game-link:hover {
-        background-color: #eee;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>HTML Games</h1>
-    </header>
-    <div class="container">
-      <a href="game1.html" class="game-link">Game 1</a>
-      <a href="game2.html" class="game-link">Game 2</a>
-      <a href="game3.html" class="game-link">Game 3</a>
-      <a href="game4.html" class="game-link">Game 4</a>
-      <a href="game5.html" class="game-link">Game 5</a>
-      <a href="game6.html" class="game-link">Game 6</a>
-      <a href="game7.html" class="game-link">Game 7</a>
-    </div>
-  </body>
+<html>
+<head>
+	<title>My HTML Games</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			font-family: Arial, sans-serif;
+		}
+		header {
+			background: #222;
+			color: #fff;
+			padding: 20px;
+			text-align: center;
+		}
+		h1 {
+			margin: 0;
+			font-size: 36px;
+		}
+		.polygon-background {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-image: url('https://cdn.pixabay.com/photo/2016/02/19/11/19/polygon-1209788_960_720.jpg');
+			background-size: cover;
+			background-position: center;
+			opacity: 0.5;
+			z-index: -1;
+		}
+		.button-container {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			align-items: center;
+			margin-top: 30px;
+		}
+		button {
+			margin: 10px;
+			padding: 10px 20px;
+			border: none;
+			border-radius: 5px;
+			background-color: #fff;
+			color: #333;
+			font-size: 18px;
+			font-weight: bold;
+			cursor: pointer;
+			transition: background-color 0.3s ease;
+		}
+		button:hover {
+			background-color: #333;
+			color: #fff;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>My HTML Games</h1>
+		<p>Play fun HTML games anytime, anywhere!</p>
+	</header>
+	<div class="polygon-background"></div>
+	<div class="button-container">
+		<button onclick="window.location.href='game1.html'">Game 1</button>
+		<button onclick="window.location.href='game2.html'">Game 2</button>
+		<button onclick="window.location.href='game3.html'">Game 3</button>
+		<button onclick="window.location.href='game4.html'">Game 4</button>
+		<button onclick="window.location.href='game5.html'">Game 5</button>
+		<button onclick="window.location.href='game6.html'">Game 6</button>
+		<button onclick="window.location.href='game7.html'">Game 7</button>
+		<button onclick="window.location.href='game8.html'">Game 8</button>
+	</div>
+	<script>
+		const background = document.querySelector('.polygon-background');
+		background.addEventListener('mousemove', function(e) {
+			const x = e.clientX / window.innerWidth;
+			const y = e.clientY / window.innerHeight;
+			background.style.transform = 'translate(-' + x * 50 + 'px, -' + y * 50 + 'px)';
+		});
+	</script>
+</body>
 </html>
