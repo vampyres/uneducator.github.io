@@ -134,11 +134,32 @@ function checkMousePosition(event) {
 }
 
 canvas.addEventListener("mousemove", checkMousePosition, false);
+      
+            // Mouse Interaction
+      canvas.addEventListener("mousemove", function(event) {
+        for (var i = 0; i < polygons.length; i++) {
+          if (polygons[i].mouseOver(event.clientX, event.clientY)) {
+            polygons[i].radius = Math.random() * 50 + 100;
+          } else {
+            polygons[i].radius = Math.random() * 50 + 50;
+          }
+        }
+      });
 
-function animate() {
-  requestAnimationFrame(animate);
-  drawBackground();
-  update();
-}
+      // Animation Loop
+      function animate() {
+        requestAnimationFrame(animate);
 
-animate();
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (var i = 0; i < polygons.length; i++) {
+          polygons[i].update();
+          polygons[i].draw();
+        }
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
+
