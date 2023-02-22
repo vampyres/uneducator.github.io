@@ -1,50 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Uneducator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Games - Home</title>
     <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background-color: darkgray;
-        }
-        .header {
-            background-color: #333;
-            color: #fff;
-            padding: 20px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .button-container {
-            text-align: center;
-        }
-        button {
-            background-color: Lavender;
-            color: Black;
-            padding: 10px 20px;
-            border-radius: 5px;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
+      body {
+        background-color: #f2f2f2;
+        font-family: Arial, sans-serif;
+        margin: 0;
+      }
+      header {
+        background-color: #333;
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 36px;
+      }
+      .container {
+        margin: 20px auto;
+        max-width: 600px;
+        padding: 0 20px;
+      }
+      .game-link {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        display: block;
+        margin-bottom: 10px;
+        padding: 10px;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+      }
+      .game-link:hover {
+        background-color: #eee;
+      }
     </style>
-</head>
-<body>
-    <div class="header">
-        Uneducator
+  </head>
+  <body>
+    <header>
+      <h1>HTML Games</h1>
+    </header>
+    <div class="container">
+      <a href="game1.html" class="game-link">Game 1</a>
+      <a href="game2.html" class="game-link">Game 2</a>
+      <a href="game3.html" class="game-link">Game 3</a>
+      <a href="game4.html" class="game-link">Game 4</a>
+      <a href="game5.html" class="game-link">Game 5</a>
+      <a href="game6.html" class="game-link">Game 6</a>
+      <a href="game7.html" class="game-link">Game 7</a>
     </div>
-    <h1 style="text-align: center;">https://uneducator.github.io/</h1>
-    <p style="text-align: center; margin-bottom: 30px;">Brought to you by Larry Simpleton</p>
-    <div class="button-container">
-        <button onclick="window.location.href='https://uneducator.github.io/eaglerk'">MC (EaglerCraft)</button>
-        <button onclick="window.location.href='https://uneducator.github.io/wafer'">CookieClicker</button>
-        <button onclick="window.location.href='https://uneducator.github.io/onevone'">1V1.Lol</button>
-        <button onclick="window.location.href='https://uneducator.github.io/amogus'">Amogus</button>
-        <button onclick="window.location.href='https://uneducator.github.io/fivenaf'">FNAF</button>
-        <button onclick="window.location.href='https://uneducator.github.io/doomclone'">Doom Clone</button>
-        <button onclick="window.location.href='https://uneducator.github.io/surfer'">Subway Surfer</button>
-    </div>
-</body>
+  </body>
 </html>
