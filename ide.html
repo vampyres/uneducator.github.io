@@ -110,17 +110,15 @@
     <!-- End of Ace Editor library -->
 
 <script>
-  // Create a function to update the preview section
+   // Create a function to update the preview section
   function updatePreview() {
     var html = htmlEditor.getValue();
     var css = "<style>" + cssEditor.getValue() + "</style>";
     var js = "<script>" + editor.getValue() + "</script>";
-    var outputFrame = document.getElementById("preview").querySelector("iframe").contentWindow.document;
+    var outputDiv = document.getElementById("preview-content");
 
-    // Write the HTML, CSS, and JS to the iframe
-    outputFrame.open();
-    outputFrame.write(html + css + js);
-    outputFrame.close();
+    // Write the HTML, CSS, and JS to the output div
+    outputDiv.innerHTML = html + css + js;
   }
 
   // Update the preview section when the user changes the code
