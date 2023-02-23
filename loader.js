@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
   // Display the loading screen
-  document.getElementById("loading-screen").style.display = "flex";
+  document.getElementById("loading-screen").style.display = "none";
 
   // Hide the loading screen after 1 second
   setTimeout(function() {
