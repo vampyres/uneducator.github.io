@@ -1,58 +1,140 @@
-
-<!DOCTYPE html>
 <html>
   <head>
-    <title>My Simple IDE</title>
+    <title>Code Editor</title>
     <style>
-      /* Styling for the IDE */
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: Arial, sans-serif;
-      }
+      /* Style for the editor section */
       #editor {
-        width: 100%;
-        height: 300px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 100%;
+        border-right: 1px solid #ccc;
       }
+
+      /* Style for the preview section */
+      #preview {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: 100%;
+        overflow: auto;
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #f2f2f2;
+      }
+
+      /* Style for the preview content */
+      #preview-content {
+        background-color: white;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+      }
+
+      /* Style for the output section */
       #output {
+        position: absolute;
+        bottom: 0;
+        left: 0;
         width: 100%;
-        height: 150px;
-      }
-      button {
-        margin-top: 10px;
-        padding: 10px;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
+        height: 50%;
+        overflow: auto;
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #f2f2f2;
       }
     </style>
   </head>
   <body>
-    <div>
-      <textarea id="editor">// Type your code here</textarea>
-      <button onclick="runCode()">Run Code</button>
-      <div id="output"></div>
+    <!-- Editor section -->
+    <div id="editor"></div>
+
+    <!-- Preview section -->
+    <div id="preview">
+      <div id="preview-content"></div>
     </div>
 
+    <!-- Output section -->
+    <div id="output"></div>
+
+    <!-- JavaScript code -->
     <script>
-      function runCode() {
-        var code = document.getElementById("editor").value; // Get the code from the textarea
-        var outputDiv = document.getElementById("output"); // Get the output div
+      // Create the editor
+      var editor = ace.edit("editor");
+      editor.setTheme("ace/theme/monokai");
+      editor.getSession().setMode("ace/mode/javascript");
 
-        // Clear the output div
-        outputDiv.innerHTML = "";
+      // Run code when the user presses Ctrl + Enter
+      editor.commands.addCommand({
+        name: "runCode",
+        bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
+        exec: function(editor) {
+          try {
+            // Clear previous output
+            document.getElementById("output").innerHTML = "";
 
-        try {
-          // Try to execute the code and output the result
-          var result = eval(code);
-          outputDiv.innerHTML = result;
-        } catch (err) {
-          // If there's an error, output the error message
-          outputDiv.innerHTML = err.message;
-        }
-      }
+            // Evaluate the code
+            var output = eval(editor.getValue());
+
+            // Display the output in the preview section
+            document.getElementById("preview-content").innerHTML = output;
+          } catch (err) {
+            // Display the error in the output section
+            document.getElementById("output").innerHTML = err.toString();
+          }
+        },
+      });
     </script>
+    <!-- End of JavaScript code -->
+
+    <!-- HTML code -->
+    <script>
+      var htmlEditor = ace.edit("editor");
+      htmlEditor.setTheme("ace/theme/monokai");
+      htmlEditor.getSession().setMode("ace/mode/html");
+    </script>
+    <!-- End of HTML code -->
+
+    <!-- CSS code -->
+    <script>
+      var cssEditor = ace.edit("editor");
+      cssEditor.setTheme("ace/theme/monokai");
+      cssEditor.getSession().setMode("ace/mode/css");
+    </script>
+    <!-- End of CSS code -->
+    
+    <!-- Ace Editor library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js" integrity="sha512-ZtHvIKm1Ggjjd5FJozSwXt1vZt21ntWLLGJYD2sg5olAAvbl/TNYW5d8ytIfZtXO1tE5ZtW5Z5YiMKOc7HYNGw==" crossorigin="anonymous"></script>
+    
+    <!-- End of Ace Editor library -->
+
+<script>
+  // Create a function to update the preview section
+  function updatePreview() {
+    var html = htmlEditor.getValue();
+    var css = "<style>" + cssEditor.getValue() + "</style>";
+    var js = "<script>" + editor.getValue() + "</script>";
+    var outputFrame = document.getElementById("preview-content").contentWindow.document;
+
+    // Write the HTML, CSS, and JS to the iframe
+    outputFrame.open();
+    outputFrame.write(html + css + js);
+    outputFrame.close();
+  }
+
+  // Update the preview section when the user changes the code
+  htmlEditor.getSession().on("change", function () {
+    updatePreview();
+  });
+
+  cssEditor.getSession().on("change", function () {
+    updatePreview();
+  });
+
+  editor.getSession().on("change", function () {
+    updatePreview();
+  });
+</script>
   </body>
 </html>
