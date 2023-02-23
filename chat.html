@@ -1,14 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Simple Chatroom</title>
-	<link rel="stylesheet" type="text/css" href="style.css">
+	<title>Chatroom</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			background-color: #f2f2f2;
+			font-family: Arial, sans-serif;
+		}
+		.container {
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 20px;
+			box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+			background-color: #ffffff;
+			border-radius: 10px;
+			position: relative;
+			top: 50%;
+			transform: translateY(-50%);
+		}
+		h1 {
+			text-align: center;
+			margin-top: 0;
+		}
+		#messages {
+			height: 400px;
+			overflow-y: scroll;
+			padding: 10px;
+			margin-bottom: 20px;
+			background-color: #fff;
+			border-radius: 5px;
+			box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+		}
+		#message-input {
+			width: 100%;
+			padding: 12px 20px;
+			margin: 8px 0;
+			box-sizing: border-box;
+			border: 2px solid #ccc;
+			border-radius: 4px;
+			resize: none;
+		}
+		#submit-btn {
+			background-color: #4CAF50;
+			color: white;
+			padding: 12px 20px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			float: right;
+		}
+		#submit-btn:hover {
+			background-color: #45a049;
+		}
+		.clearfix::after {
+			content: "";
+			clear: both;
+			display: table;
+		}
+		.message {
+			padding: 10px;
+			margin-bottom: 10px;
+			background-color: #f2f2f2;
+			border-radius: 5px;
+			box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+		}
+		.message .meta {
+			font-size: 14px;
+			font-style: italic;
+			margin-bottom: 5px;
+		}
+		.message .content {
+			font-size: 16px;
+		}
+	</style>
 </head>
 <body>
 	<div class="container">
-		<div class="chatbox"></div>
-		<input type="text" id="input" placeholder="Type your message here...">
-		<button id="send-btn">Send</button>
+		<h1>Chatroom</h1>
+		<div id="messages"></div>
+		<form id="message-form" action="">
+			<textarea id="message-input" placeholder="Type your message here..."></textarea>
+			<input id="submit-btn" type="submit" value="Send">
+		</form>
 	</div>
 
 	<script src="chat.js"></script>
