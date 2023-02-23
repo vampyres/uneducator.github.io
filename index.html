@@ -3,6 +3,66 @@
   <head>
     <title>uneducator</title>
     <style>
+      
+      body {
+			margin: 0;
+			padding: 0;
+			background-color: #222;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			height: 100vh;
+			overflow: hidden;
+		}
+		
+		.loading-polygons {
+			position: relative;
+			width: 200px;
+			height: 200px;
+		}
+		
+		.loading-polygons .polygon {
+			position: absolute;
+			width: 0;
+			height: 0;
+			border-style: solid;
+			border-width: 0 50px 86.6px 50px;
+			border-color: transparent transparent #fff transparent;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%) rotate(60deg);
+			animation: polygon-rotate 1.2s linear infinite;
+		}
+		
+		.loading-polygons .polygon:nth-child(2) {
+			transform: translate(-50%, -50%) rotate(120deg);
+			animation-delay: -1s;
+		}
+		
+		.loading-polygons .polygon:nth-child(3) {
+			transform: translate(-50%, -50%) rotate(180deg);
+			animation-delay: -0.8s;
+		}
+		
+		.loading-polygons .polygon:nth-child(4) {
+			transform: translate(-50%, -50%) rotate(240deg);
+			animation-delay: -0.6s;
+		}
+		
+		.loading-polygons .polygon:nth-child(5) {
+			transform: translate(-50%, -50%) rotate(300deg);
+			animation-delay: -0.4s;
+		}
+		
+		@keyframes polygon-rotate {
+			0% {
+				transform: translate(-50%, -50%) rotate(0);
+			}
+			100% {
+				transform: translate(-50%, -50%) rotate(360deg);
+			}
+		}
+      
       body {
         margin: 0;
         padding: 0;
@@ -160,6 +220,20 @@ canvas.addEventListener("mousemove", checkMousePosition, false);
 
       animate();
     </script>
+    
+    	<div class="loading-polygons">
+		<div class="polygon"></div>
+		<div class="polygon"></div>
+		<div class="polygon"></div>
+		<div class="polygon"></div>
+		<div class="polygon"></div>
+	</div>
+	<script>
+		setTimeout(function() {
+			document.querySelector('body').classList.add('loaded');
+		}, 1000);
+	</script>
+    
   </body>
 </html>
 
