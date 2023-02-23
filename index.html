@@ -47,36 +47,6 @@
         transform: scale(1.1);
       }
 	    
-	    #loading-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #ffffff;
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.loading-indicator {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 4px solid #2f3e93;
-  border-top-color: #ffffff;
-  animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
 
 	    
     </style>
@@ -196,11 +166,6 @@ canvas.addEventListener("mousemove", checkMousePosition, false);
 
       animate();
     </script>
-
-	<div id="loading-screen">
-	<div class="loading-indicator"></div>
-	</div>
-
 	  
   </body>
 </html>
