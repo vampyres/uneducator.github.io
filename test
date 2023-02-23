@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Uneducator</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #111;
+        overflow: hidden;
+      }
+      
+      #background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom right, #ff0055, #ffbb00, #00e5ff, #00ff8f);
+        clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      }
+      
+      #button-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+      
+      button {
+        padding: 20px 40px;
+        font-size: 2em;
+        font-weight: bold;
+        border-radius: 50px;
+        border: none;
+        background-color: #fff;
+        color: #111;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="background"></div>
+    <div id="button-container">
+      <a href="/homepage.html"><button>Uneducator</button></a>
+    </div>
+  </body>
+</html>
