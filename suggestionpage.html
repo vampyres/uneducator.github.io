@@ -2,26 +2,78 @@
 <html>
 <head>
 	<title>Suggestion Page</title>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" type="text/css" href="style.css">
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			background-color: #f2f2f2;
+			margin: 0;
+			padding: 0;
+		}
+
+		h1 {
+			text-align: center;
+			margin-top: 50px;
+			color: #333333;
+		}
+
+		form {
+			margin: 0 auto;
+			max-width: 500px;
+			padding: 20px;
+			background-color: #ffffff;
+			border-radius: 5px;
+			box-shadow: 0 0 5px #aaaaaa;
+		}
+
+		label {
+			display: block;
+			margin-top: 10px;
+			color: #333333;
+		}
+
+		input[type="text"], textarea {
+			width: 100%;
+			padding: 10px;
+			margin-top: 5px;
+			margin-bottom: 10px;
+			border: 1px solid #cccccc;
+			border-radius: 3px;
+			box-sizing: border-box;
+			resize: vertical;
+			font-size: 16px;
+			font-family: Arial, sans-serif;
+			color: #333333;
+		}
+
+		input[type="submit"] {
+			background-color: #4CAF50;
+			color: #ffffff;
+			padding: 12px 20px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 16px;
+			font-family: Arial, sans-serif;
+		}
+
+		input[type="submit"]:hover {
+			background-color: #45a049;
+		}
+	</style>
 </head>
 <body>
-	<div class="container">
-		<h1>Suggestion Box</h1>
-		<p>We appreciate your feedback! Please use the form below to submit any suggestions you have:</p>
-		<form action="suggestion.php" method="post">
-			<label for="name">Name:</label>
-			<input type="text" id="name" name="name" required>
+	<h1>Suggestion Page</h1>
+	<form action="suggestion.php" method="post">
+		<label for="name">Name:</label>
+		<input type="text" id="name" name="name" required>
 
-			<label for="email">Email:</label>
-			<input type="email" id="email" name="email" required>
+		<label for="email">Email:</label>
+		<input type="text" id="email" name="email" required>
 
-			<label for="suggestion">Suggestion:</label>
-			<textarea id="suggestion" name="suggestion" rows="5" required></textarea>
+		<label for="suggestion">Suggestion:</label>
+		<textarea id="suggestion" name="suggestion" rows="5" required></textarea>
 
-			<input type="submit" value="Submit">
-		</form>
-	</div>
+		<input type="submit" value="Submit">
+	</form>
 </body>
 </html>
