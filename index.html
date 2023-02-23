@@ -67,13 +67,13 @@
       canvas.height = window.innerHeight;
 
       var polygons = [];
-      var numPolygons = 200;
+      var numPolygons = 100;
 
       for (var i = 0; i < numPolygons; i++) {
         var x = Math.random() * canvas.width;
         var y = Math.random() * canvas.height;
         var sides = Math.round(Math.random() * 4) + 3;
-        var radius = Math.random() * 50 + 50;
+        var radius = Math.random() * 50 + 60;
         var color = "rgba(" + Math.floor(Math.random() * 255) + "," + Math.floor(Math.random() * 255) + "," + Math.floor(Math.random() * 255) + "," + Math.random() + ")";
         polygons.push(new Polygon(x, y, sides, radius, color));
       }
