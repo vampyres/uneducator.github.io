@@ -115,7 +115,7 @@
     var html = htmlEditor.getValue();
     var css = "<style>" + cssEditor.getValue() + "</style>";
     var js = "<script>" + editor.getValue() + "</script>";
-    var outputFrame = document.getElementById("preview-content").contentWindow.document;
+    var outputFrame = document.getElementById("preview").querySelector("iframe").contentWindow.document;
 
     // Write the HTML, CSS, and JS to the iframe
     outputFrame.open();
