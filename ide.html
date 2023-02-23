@@ -114,7 +114,7 @@
   function updatePreview() {
     var html = htmlEditor.getValue();
     var css = "<style>" + cssEditor.getValue() + "</style>";
-    var js = "<script>" + editor.getValue() + "</script>";
+    var js = "<script>" + editor.getValue() + "</script" + ">";
     var outputDiv = document.getElementById("preview-content");
 
     // Write the HTML, CSS, and JS to the output div
