@@ -1,2 +1,20 @@
-<iframe id="game-content" marginheight="0" marginwidth="0" frameborder="0" scrolling="no" border="0" allow="fullscreen" src="https://html5.gamedistribution.com/2d44a0c8ce704965b2031bcc4ae6a9a8/?gd_sdk_referrer_url=https://www.playit-online.com/game/going-balls/" style="border:0px;width:800px;height:600px;">
-        </iframe>
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Going Balls Game</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		iframe {
+			border: 0;
+			width: 100vw;
+			height: 100vh;
+		}
+	</style>
+</head>
+<body>
+	<iframe id="game-content" marginheight="0" marginwidth="0" frameborder="0" scrolling="no" border="0" allow="fullscreen" src="https://html5.gamedistribution.com/2d44a0c8ce704965b2031bcc4ae6a9a8/?gd_sdk_referrer_url=https://www.playit-online.com/game/going-balls/"></iframe>
+</body>
+</html>
