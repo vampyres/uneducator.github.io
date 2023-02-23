@@ -1,104 +1,155 @@
-<html>
-  <head>
-    <title>Uneducator</title>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Polygonal Background with Button</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #222;
+    }
+    
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+    
+    button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #fff;
+      background-color: transparent;
+      border: 2px solid #fff;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+    }
+    
+    button:hover {
+      background-color: #fff;
+      color: #222;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <button onclick="location.href='/homepage/index.html'">Uneducator</button>
+  <script>
+    // Set up the canvas
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set the canvas dimensions
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Define the number of polygons to create
+    const numPolygons = 50;
+    
+    // Define the colors to use for the polygons
+    const colors = [
+      '#e6194B',
+      '#3cb44b',
+      '#ffe119',
+      '#4363d8',
+      '#f58231',
+      '#911eb4',
+      '#46f0f0',
+      '#f032e6',
+      '#bcf60c',
+      '#fabebe'
+    ];
+    
+    // Define the maximum and minimum number of sides for the polygons
+    const maxSides = 8;
+    const minSides = 3;
+    
+    // Define the maximum and minimum radius for the polygons
+    const maxRadius = 200;
+    const minRadius = 50;
+    
+    // Define the maximum and minimum speed for the polygons
+    const maxSpeed = 2;
+    const minSpeed = 0.5;
+    
+    // Define an array to store the polygons
+    let polygons = [];
+    
+    // Create the polygons
+    for (let i = 0; i < numPolygons; i++) {
+      // Define the polygon properties
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const sides = Math.floor(Math.random() * (maxSides - minSides + 1)) + minSides;
+      const radius = Math.floor(Math.random() * (maxRadius - minRadius + 1)) + minRadius;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const speedX = (Math.random() * (maxSpeed - minSpeed) + minSpeed) * (Math.random() < 0.5 ? 1 : -1);
+      const speedY = (Math.random() * (maxSpeed - minSpeed) + minSpeed) * (Math.random() < 0.5 ? 1 : -1);
       
-      #background {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: #1c1c1c;
-        cursor: pointer;
-      }
+      // Create the polygon
+      const polygon = {
+        x,
+        y,
+        sides,
+        radius,
+        color,
+        speedX,
+        speedY
+};
+	    
+	      // Add the polygon to the array
+  polygons.push(polygon);
+}
 
-      #button {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: #ffffff;
-        border: none;
-        border-radius: 5px;
-        color: #1c1c1c;
-        font-size: 2rem;
-        padding: 1rem 2rem;
-        cursor: pointer;
-      }
-
-      /* Style for the polygonal background */
-      .polygon {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-      }
-
-      /* Style for the polygonal background */
-      .polygon:hover {
-        fill: #ffffff;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Polygonal background -->
-    <svg id="background">
-      <polygon class="polygon" points="0,0 100,0 50,50" fill="#2d2d2d"/>
-      <polygon class="polygon" points="100,0 200,0 150,50" fill="#383838"/>
-      <polygon class="polygon" points="0,100 50,50 100,100" fill="#444444"/>
-      <polygon class="polygon" points="50,50 150,50 100,100" fill="#505050"/>
-      <polygon class="polygon" points="0,200 100,200 50,150" fill="#5b5b5b"/>
-      <polygon class="polygon" points="100,200 200,200 150,150" fill="#666666"/>
-      <polygon class="polygon" points="0,300 50,250 100,300" fill="#717171"/>
-      <polygon class="polygon" points="50,250 150,250 100,300" fill="#7d7d7d"/>
-      <polygon class="polygon" points="0,400 100,400 50,350" fill="#888888"/>
-      <polygon class="polygon" points="100,400 200,400 150,350" fill="#949494"/>
-      <polygon class="polygon" points="0,500 50,450 100,500" fill="#a0a0a0"/>
-      <polygon class="polygon" points="50,450 150,450 100,500" fill="#acacac"/>
-      <polygon class="polygon" points="0,600 100,600 50,550" fill="#b7b7b7"/>
-      <polygon class="polygon" points="100,600 200,600 150,550" fill="#c2c2c2"/>
-      <polygon class="polygon" points="0,700 50,650 100,700" fill="#cdcdcd"/>
-      <polygon class="polygon" points="50,650 150,650 100,700" fill="#d9d9d9"/>
-      <polygon class="polygon" points="0,800 100,800 50,750" fill="#e4e4e4"/>
-      <polygon class="polygon" points="100,800 200,800 150,750" fill="#efefef"/>
-      <polygon class="polygon" points="0,900 50,850 100,900" fill="#fafafa"/>
-      <polygon class="polygon" points="50,850 150,850 100,900" fill="#ffffff"/>
-      </svg>
-		<!-- Button to start the uneducating process -->
-<button href="/homepage/index.html" id="button">Start Uneducating</button>
-
-<script>
-  // Function to randomly rotate polygons
-  function randomRotation() {
-    let angle = Math.floor(Math.random() * 361);
-    return `rotate(${angle}deg)`;
-  }
-
-  // Add rotation to each polygon on load
-  window.onload = function() {
-    let polygons = document.querySelectorAll(".polygon");
-    for (let i = 0; i < polygons.length; i++) {
-      polygons[i].style.transform = randomRotation();
+// Animate the polygons
+function animate() {
+  // Clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw the polygons
+  for (let i = 0; i < polygons.length; i++) {
+    const polygon = polygons[i];
+    
+    // Update the polygon position
+    polygon.x += polygon.speedX;
+    polygon.y += polygon.speedY;
+    
+    // Check for collision with the canvas edges
+    if (polygon.x - polygon.radius < 0 || polygon.x + polygon.radius > canvas.width) {
+      polygon.speedX = -polygon.speedX;
     }
-  }
-
-  // Add click event to the background to randomly rotate polygons on click
-  let background = document.querySelector("#background");
-  background.addEventListener("click", function() {
-    let polygons = document.querySelectorAll(".polygon");
-    for (let i = 0; i < polygons.length; i++) {
-      polygons[i].style.transform = randomRotation();
+    if (polygon.y - polygon.radius < 0 || polygon.y + polygon.radius > canvas.height) {
+      polygon.speedY = -polygon.speedY;
     }
-  });
+    
+    // Draw the polygon
+    ctx.beginPath();
+    ctx.moveTo(polygon.x + polygon.radius * Math.cos(0), polygon.y + polygon.radius * Math.sin(0));
+    for (let j = 1; j < polygon.sides; j++) {
+      ctx.lineTo(polygon.x + polygon.radius * Math.cos(j * 2 * Math.PI / polygon.sides), polygon.y + polygon.radius * Math.sin(j * 2 * Math.PI / polygon.sides));
+    }
+    ctx.closePath();
+    ctx.fillStyle = polygon.color;
+    ctx.fill();
+  }
+  
+  // Request the next frame
+  requestAnimationFrame(animate);
+}
 
-</script>
-  </body>
+// Start the animation
+animate();
+  </script>
+</body>
 </html>
+
+
