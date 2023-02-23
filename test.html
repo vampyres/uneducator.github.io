@@ -1,49 +1,146 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Uneducator</title>
+    <title>Polygonal Background with Button</title>
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #111;
         overflow: hidden;
       }
-      
-      #background {
+
+      canvas {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(to bottom right, #ff0055, #ffbb00, #00e5ff, #00ff8f);
-        clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        z-index: -1;
       }
-      
-      #button-container {
+
+      button {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        text-align: center;
-      }
-      
-      button {
-        padding: 20px 40px;
         font-size: 2em;
-        font-weight: bold;
-        border-radius: 50px;
+        padding: 20px 40px;
         border: none;
-        background-color: #fff;
-        color: #111;
+        border-radius: 50px;
+        background-color: #4CAF50;
+        color: white;
         cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #3e8e41;
       }
     </style>
   </head>
   <body>
-    <div id="background"></div>
-    <div id="button-container">
-      <a href="/homepage.html"><button>Uneducator</button></a>
-    </div>
+    <canvas id="canvas"></canvas>
+    <button onclick="window.location.href='/homepage/index.html'">Uneducator</button>
+    <script>
+      var canvas = document.getElementById("canvas");
+      var ctx = canvas.getContext("2d");
+
+      var colors = [
+        "#e74c3c",
+        "#2980b9",
+        "#8e44ad",
+        "#f1c40f",
+        "#2ecc71",
+        "#3498db",
+        "#f39c12",
+        "#1abc9c",
+        "#9b59b6",
+        "#27ae60",
+        "#16a085",
+        "#c0392b",
+        "#e67e22",
+        "#34495e",
+        "#d35400",
+        "#bdc3c7",
+        "#7f8c8d",
+      ];
+
+      var shapes = [];
+
+      function Shape(x, y, radius, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+
+        this.draw = function () {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.closePath();
+        };
+
+        this.update = function () {
+          if (
+            mouse.x - this.x < 50 &&
+            mouse.x - this.x > -50 &&
+            mouse.y - this.y < 50 &&
+            mouse.y - this.y > -50
+          ) {
+            if (this.radius < 40) {
+              this.radius += 1;
+            }
+          } else {
+            if (this.radius > 5) {
+              this.radius -= 1;
+            }
+          }
+
+          this.draw();
+        };
+      }
+
+      function init() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        for (var i = 0; i < 300; i++) {
+          var x = Math.random() * canvas.width;
+          var y = Math.random() * canvas.height;
+          var radius = 5;
+          var color = colors[Math.floor(Math.random() * colors.length)];
+
+          shapes.push(new Shape(x, y, radius, color));
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (var i = 0; i < shapes.length; i++) {
+      shapes[i].update();
+    }
+  }
+
+  var mouse = {
+    x: undefined,
+    y: undefined,
+  };
+
+  window.addEventListener("mousemove", function (event) {
+    mouse.x = event.x;
+    mouse.y = event.y;
+  });
+
+  window.addEventListener("resize", function () {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    init();
+  });
+
+  init();
+  animate();
+</script>
   </body>
 </html>
