@@ -1,2 +1,1 @@
-larry incorporated
-https://uneducator.github.io
+Uneducator is a website that is designed, to help students when presented with boredom in class; we provide many games, bookmarklets, a minimalistic UI and aim to never leave our users. We will always find vunerabilities in school blocks and we will never be unaccessible.
