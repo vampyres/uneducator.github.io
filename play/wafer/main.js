@@ -1,13 +1,14 @@
 ﻿/*
-All this code is copyright Orteil, 2013-2019.
+All this code is copyright Orteil, 2013-2020.
 	-with some help, advice and fixes by Nicholas Laux, Debugbro, Opti, and lots of people on reddit, Discord, and the DashNet forums
 	-also includes a bunch of snippets found on stackoverflow.com and others
-Hello, and welcome to the joyous mess that is main.js. Code contained herein is not guaranteed to be good, consistent, or sane. Most of this is years old at this point and harkens back to simpler, cruder times. Have a nice trip.
+	-want to mod the game? scroll down to the "MODDING API" section
+Hello, and welcome to the joyous mess that is main.js. Code contained herein is not guaranteed to be good, consistent, or sane. Most of this is years old at this point and harkens back to simpler, cruder times. In particular I've tried to maintain compatibility with fairly old versions of javascript, which means luxuries such as 'let', arrow functions and string literals are unavailable. Have a nice trip.
 Spoilers ahead.
 http://orteil.dashnet.org
 */
 
-var VERSION=2.019;
+var VERSION=69.420;
 var BETA=0;
 
 
@@ -101,30 +102,47 @@ var ajax=function(url,callback)
 	return true;
 }
 
+function toFixed(x)
+{
+	if (Math.abs(x) < 1.0) {
+		var e = parseInt(x.toString().split('e-')[1]);
+		if (e) {
+			x *= Math.pow(10,e-1);
+			x = '0.' + (new Array(e)).join('0') + x.toString().substring(2);
+		}
+	} else {
+		var e = parseInt(x.toString().split('+')[1]);
+		if (e > 20) {
+			e -= 20;
+			x /= Math.pow(10,e);
+			x += (new Array(e+1)).join('0');
+		}
+	}
+	return x;
+}
 
 //Beautify and number-formatting adapted from the Frozen Cookies add-on (http://cookieclicker.wikia.com/wiki/Frozen_Cookies_%28JavaScript_Add-on%29)
 function formatEveryThirdPower(notations)
 {
-	return function (value)
+	return function (val)
 	{
-		var base = 0,
-		notationValue = '';
-		if (!isFinite(value)) return 'Infinity';
-		if (value >= 1000000)
+		var base=0,notationValue='';
+		if (!isFinite(val)) return 'Infinity';
+		if (val>=1000000)
 		{
-			value /= 1000;
-			while(Math.round(value) >= 1000)
+			val/=1000;
+			while(Math.round(val)>=1000)
 			{
-				value /= 1000;
+				val/=1000;
 				base++;
 			}
-			if (base >= notations.length) {return 'Infinity';} else {notationValue = notations[base];}
+			if (base>=notations.length) {return 'Infinity';} else {notationValue=notations[base];}
 		}
-		return ( Math.round(value * 1000) / 1000 ) + notationValue;
+		return (Math.round(val*1000)/1000)+notationValue;
 	};
 }
 
-function rawFormatter(value) {return Math.round(value * 1000) / 1000;}
+function rawFormatter(val){return Math.round(val*1000)/1000;}
 
 var formatLong=[' thousand',' million',' billion',' trillion',' quadrillion',' quintillion',' sextillion',' septillion',' octillion',' nonillion'];
 var prefixes=['','un','duo','tre','quattuor','quin','sex','septen','octo','novem'];
@@ -150,50 +168,58 @@ for (var i in suffixes)
 formatShort[10]='Dc';
 
 
-var numberFormatters =
+var numberFormatters=
 [
 	formatEveryThirdPower(formatShort),
 	formatEveryThirdPower(formatLong),
 	rawFormatter
 ];
-function Beautify(value,floats)
+function Beautify(val,floats)
 {
-	var negative=(value<0);
+	var negative=(val<0);
 	var decimal='';
-	var fixed=value.toFixed(floats);
-	if (Math.abs(value)<1000 && floats>0 && Math.floor(fixed)!=fixed) decimal='.'+(fixed.toString()).split('.')[1];
-	value=Math.floor(Math.abs(value));
-	if (floats>0 && fixed==value+1) value++;
+	var fixed=val.toFixed(floats);
+	if (Math.abs(val)<1000 && floats>0 && Math.floor(fixed)!=fixed) decimal='.'+(fixed.toString()).split('.')[1];
+	val=Math.floor(Math.abs(val));
+	if (floats>0 && fixed==val+1) val++;
 	var formatter=numberFormatters[Game.prefs.format?2:1];
-	var output=formatter(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
+	var output=(val.toString().indexOf('e+')!=-1 && Game.prefs.format==1)?val.toPrecision(3).toString():formatter(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
+	//var output=formatter(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
 	if (output=='0') negative=false;
 	return negative?'-'+output:output+decimal;
 }
-function shortenNumber(value)
+function shortenNumber(val)
 {
 	//if no scientific notation, return as is, else :
 	//keep only the 5 first digits (plus dot), round the rest
 	//may or may not work properly
-	if (value >= 1000000 && isFinite(value))
+	if (val>=1000000 && isFinite(val))
 	{
-		var num=value.toString();
+		var num=val.toString();
 		var ind=num.indexOf('e+');
-		if (ind==-1) return value;
+		if (ind==-1) return val;
 		var str='';
-		for (var i=0;i<ind;i++)
-		{
-			str+=(i<6?num[i]:'0');
-		}
+		for (var i=0;i<ind;i++) {str+=(i<6?num[i]:'0');}
 		str+='e+';
 		str+=num.split('e+')[1];
 		return parseFloat(str);
 	}
-	return value;
+	return val;
 }
 
+SimpleBeautify=function(val)
+{
+	var str=val.toString();
+	var str2='';
+	for (var i in str)//add commas
+	{
+		if ((str.length-i)%3==0 && i>0) str2+=',';
+		str2+=str[i];
+	}
+	return str2;
+}
 
 var beautifyInTextFilter=/(([\d]+[,]*)+)/g;//new regex
-var a=/\d\d?\d?(?:,\d\d\d)*/g;//old regex
 function BeautifyInTextFunction(str){return Beautify(parseInt(str.replace(/,/g,''),10));};
 function BeautifyInText(str) {return str.replace(beautifyInTextFilter,BeautifyInTextFunction);}//reformat every number inside a string
 function BeautifyAll()//run through upgrades and achievements to reformat the numbers
@@ -482,8 +508,6 @@ var PlaySound=function(url,vol,pitchVar)
 	//vol : volume between 0 and 1 (multiplied by game volume setting); defaults to 1 (full volume)
 	//(DISABLED) pitchVar : pitch variance in browsers that support it (Firefox only at the moment); defaults to 0.05 (which means pitch can be up to -5% or +5% anytime the sound plays)
 	var volume=1;
-	var pitchVar=(typeof pitchVar==='undefined')?0.05:pitchVar;
-	var rate=1+(Math.random()*2-1)*pitchVar;
 	if (typeof vol!=='undefined') volume=vol;
 	if (!Game.volume || volume==0) return 0;
 	if (!Sounds[url])
@@ -500,8 +524,10 @@ var PlaySound=function(url,vol,pitchVar)
 		sound.src=Sounds[url].src;
 		//sound.currentTime=0;
 		sound.volume=Math.pow(volume*Game.volume/100,2);
-		if (pitchSupport && rate!=0)
+		if (pitchSupport)
 		{
+			var pitchVar=(typeof pitchVar==='undefined')?0.05:pitchVar;
+			var rate=1+(Math.random()*2-1)*pitchVar;
 			sound.preservesPitch=false;
 			sound.mozPreservesPitch=false;
 			sound.webkitPreservesPitch=false;
@@ -569,6 +595,7 @@ Game.Launch=function()
 	Game.version=VERSION;
 	Game.beta=BETA;
 	if (window.location.href.indexOf('/beta')>-1) Game.beta=1;
+	Game.https=(location.protocol!='https:')?false:true;
 	Game.mobile=0;
 	Game.touchEvents=0;
 	//if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) Game.mobile=1;
@@ -582,15 +609,17 @@ Game.Launch=function()
 	
 	Game.baseSeason='';//halloween, christmas, valentines, fools, easter
 	//automatic season detection (might not be 100% accurate)
-	var day=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
+	var year=new Date().getFullYear();
+	var leap=(((year%4==0)&&(year%100!=0))||(year%400==0))?1:0;
+	var day=Math.floor((new Date()-new Date(year,0,0))/(1000*60*60*24));
 	if (day>=41 && day<=46) Game.baseSeason='valentines';
-	else if (day>=90 && day<=92) Game.baseSeason='fools';
-	else if (day>=304-7 && day<=304) Game.baseSeason='halloween';
-	else if (day>=349 && day<=365) Game.baseSeason='christmas';
+	else if (day+leap>=90 && day<=92+leap) Game.baseSeason='fools';
+	else if (day>=304-7+leap && day<=304+leap) Game.baseSeason='halloween';
+	else if (day>=349+leap && day<=365+leap) Game.baseSeason='christmas';
 	else
 	{
 		//easter is a pain goddamn
-		var easterDay=function(Y){var C = Math.floor(Y/100);var N = Y - 19*Math.floor(Y/19);var K = Math.floor((C - 17)/25);var I = C - Math.floor(C/4) - Math.floor((C - K)/3) + 19*N + 15;I = I - 30*Math.floor((I/30));I = I - Math.floor(I/28)*(1 - Math.floor(I/28)*Math.floor(29/(I + 1))*Math.floor((21 - N)/11));var J = Y + Math.floor(Y/4) + I + 2 - C + Math.floor(C/4);J = J - 7*Math.floor(J/7);var L = I - J;var M = 3 + Math.floor((L + 40)/44);var D = L + 28 - 31*Math.floor(M/4);return new Date(Y,M-1,D);}(new Date().getFullYear());
+		var easterDay=function(Y){var C = Math.floor(Y/100);var N = Y - 19*Math.floor(Y/19);var K = Math.floor((C - 17)/25);var I = C - Math.floor(C/4) - Math.floor((C - K)/3) + 19*N + 15;I = I - 30*Math.floor((I/30));I = I - Math.floor(I/28)*(1 - Math.floor(I/28)*Math.floor(29/(I + 1))*Math.floor((21 - N)/11));var J = Y + Math.floor(Y/4) + I + 2 - C + Math.floor(C/4);J = J - 7*Math.floor(J/7);var L = I - J;var M = 3 + Math.floor((L + 40)/44);var D = L + 28 - 31*Math.floor(M/4);return new Date(Y,M-1,D);}(year);
 		easterDay=Math.floor((easterDay-new Date(easterDay.getFullYear(),0,0))/(1000*60*60*24));
 		if (day>=easterDay-7 && day<=easterDay) Game.baseSeason='easter';
 	}
@@ -600,15 +629,15 @@ Game.Launch=function()
 	'<div class="section">Info</div>'+
 	'<div class="subsection">'+
 	'<div class="title">About</div>'+
-	'<div class="listing">Cookie Clicker is a javascript game by <a href="http://orteil.dashnet.org" target="_blank">Orteil</a> and <a href="http://dashnet.org" target="_blank">Opti</a>.</div>'+
+	'<div class="listing">Cookie Clicker is a javascript game by <a href="//orteil.dashnet.org" target="_blank">Orteil</a> and <a href="//dashnet.org" target="_blank">Opti</a>.</div>'+
 	//'<div class="listing">We have an <a href="https://discordapp.com/invite/cookie" target="_blank">official Discord</a>, as well as a <a href="http://forum.dashnet.org" target="_blank">forum</a>; '+
 	'<div class="listing">We have an <a href="https://discordapp.com/invite/cookie" target="_blank">official Discord</a>; '+
 		'if you\'re looking for help, you may also want to visit the <a href="http://www.reddit.com/r/CookieClicker" target="_blank">subreddit</a> '+
 		'or the <a href="http://cookieclicker.wikia.com/wiki/Cookie_Clicker_Wiki" target="_blank">wiki</a>.</div>'+
-	'<div class="listing">News and teasers are usually posted on my <a href="http://orteil42.tumblr.com/" target="_blank">tumblr</a> and <a href="http://twitter.com/orteil42" target="_blank">twitter</a>.</div>'+
+	'<div class="listing">News and teasers are usually posted on my <a href="https://orteil42.tumblr.com/" target="_blank">tumblr</a> and <a href="https://twitter.com/orteil42" target="_blank">twitter</a>.</div>'+
 	'<div class="listing" id="supportSection"><b style="color:#fff;opacity:1;">Cookie Clicker is 100% free, forever.</b> Want to support us so we can keep developing games? Here\'s some ways you can help :<div style="margin:4px 12px;line-height:150%;">'+
 	'<br>&bull; support us on <a href="https://www.patreon.com/dashnet" target="_blank" class="highlightHover" style="background:#f86754;box-shadow:0px 0px 0px 1px #c52921 inset,0px 2px 0px #ff966d inset;text-shadow:0px -1px 0px #ff966d,0px 1px 0px #c52921;text-decoration:none;color:#fff;font-weight:bold;padding:1px 4px;">Patreon</a> <span style="opacity:0.5;">(there\'s perks!)</span>'+
-	'<br>&bull; <form target="_blank" action="https://www.paypal.com/cgi-bin/webscr" method="post" id="donate"><input type="hidden" name="cmd" value="_s-xclick"><input type="hidden" name="hosted_button_id" value="BBN2WL3TC6QH4"><input type="submit" id="donateButton" value="donate" name="submit" alt="PayPal — The safer, easier way to pay online."><img alt="" border="0" src="https://www.paypalobjects.com/nl_NL/i/scr/pixel.gif" width="1" height="1"></form> to our PayPal'+
+	'<br>&bull; <form target="_blank" action="https://www.paypal.com/cgi-bin/webscr" method="post" id="donate"><input type="hidden" name="cmd" value="_s-xclick"><input type="hidden" name="hosted_button_id" value="BBN2WL3TC6QH4"><input type="submit" id="donateButton" value="donate" name="submit" alt="PayPal — The safer, easier way to pay online."><img alt="" border="0" src="https://www.paypalobjects.com/nl_NL/i/scr/pixel.gif" width="1" height="1"></form> to our PayPal <span style="opacity:0.5;">(note: PayPal takes at least $0.32 in fees so only amounts above that reach us!)</span>'+
 	'<br>&bull; disable your adblocker<br>&bull; check out our <a href="http://www.redbubble.com/people/dashnet" target="_blank">rad cookie shirts, hoodies and stickers</a>!<br>&bull; (if you want!)</div></div>'+
 	'<div class="listing warning">Note : if you find a new bug after an update and you\'re using a 3rd-party add-on, make sure it\'s not just your add-on causing it!</div>'+
 	'<div class="listing warning">Warning : clearing your browser cache or cookies <small>(what else?)</small> will result in your save being wiped. Export your save and back it up first!</div>'+
@@ -616,17 +645,65 @@ Game.Launch=function()
 	'</div><div class="subsection">'+
 	'<div class="title">Version history</div>'+
 	
+	'</div><div class="subsection update">'+
+	'<div class="title">01/11/2020 - alternate reality</div>'+
+	'<div class="listing">&bull; new building</div>'+
+	'<div class="listing">&bull; new upgrade tier</div>'+
+	'<div class="listing">&bull; new achievement tier</div>'+
+	'<div class="listing">&bull; new heavenly upgrades</div>'+
+	'<div class="listing">&bull; new modding API</div>'+
+	'<div class="listing">&bull; new rebalancing (ascension slot prices, finger upgrades...)</div>'+
+	'<div class="listing">&bull; new fixes (leap years, ghost swaps, carryover seeds...)</div>'+
+	'<div class="listing">&bull; new stuff</div>'+
+	
+	'</div><div class="subsection update small">'+
+	'<div class="title">23/08/2020 - money me, money now</div>'+
+	'<div class="listing">&bull; finalized stock market minigame beta and added it to live version</div>'+
+	'<div class="listing">&bull; dark mode added to stock market minigame</div>'+
+	'<div class="listing">&bull; can no longer select a milk before unlocking it; milk selector layout has been improved</div>'+
+	'<div class="listing">&bull; stock market goods have higher value caps and a larger spread; can also shift-click the hide buttons to hide/show all other stocks</div>'+
+	
+	'</div><div class="subsection update small">'+
+	'<div class="title">08/08/2020 - checking account (beta)</div>'+
+	'<div class="listing">&bull; stock market layout has been revised</div>'+
+	'<div class="listing">&bull; selling stocks no longer increases cookies baked all time</div>'+
+	'<div class="listing">&bull; stock prices are now defined by your highest raw CpS this ascension (which is now displayed in the stats screen)</div>'+
+	'<div class="listing">&bull; can no longer buy and sell a stock in the same tick</div>'+
+	'<div class="listing">&bull; warehouse space now gains +10 per associated building level (up from +5)</div>'+
+	'<div class="listing">&bull; bank level now improves average (and maximum) stock values</div>'+
+	'<div class="listing">&bull; later stocks are worth more</div>'+
+	'<div class="listing">&bull; Cookie Clicker turns 7!</div>'+
+	
+	'</div><div class="subsection update">'+
+	'<div class="title">18/06/2020 - making bank (beta)</div>'+
+	'<div class="listing">&bull; added the stock market minigame, accessible with level 1 banks or above; buy low, sell high!</div>'+
+	'<div class="listing">&bull; (minigame subject to heavy rebalancing over the coming patches)</div>'+
+	'<div class="listing">&bull; added a couple heavenly upgrades, including one that lets you pet your dragon</div>'+
+	'<div class="listing">&bull; added a new tier of building upgrades and achievements</div>'+
+	'<div class="listing">&bull; reindeer clicks now properly count for shimmering veil</div>'+
+	'<div class="listing">&bull; numbers in scientific notation should display better with Short numbers off</div>'+
+	'<div class="listing">&bull; replaced ツ in the javascript console building display with more accurate ッ</div>'+
+	
+	'</div><div class="subsection update">'+
+	'<div class="title">28/09/2019 - going off-script</div>'+
+	'<div class="listing">&bull; added a new building</div>'+
+	'<div class="listing">&bull; added fortune cookies (a new heavenly upgrade)</div>'+
+	'<div class="listing">&bull; more upgrades, achievements etc</div>'+
+	'<div class="listing">&bull; updated the Russian bread cookies icon to better reflect their cyrillic origins</div>'+
+	'<div class="listing">&bull; <i style="font-style:italic;">stealth update :</i> the sugar lump refill timeout (not sugar lump growth) now no longer ticks down while the game is closed (this fixes an exploit)</div>'+
+	'<div class="listing">&bull; also released the official Android version of Cookie Clicker, playable <a href="https://play.google.com/store/apps/details?id=org.dashnet.cookieclicker" target="_blank">here</a> (iOS version will come later)</div>'+
+	
 	'</div><div class="subsection update small">'+
 	'<div class="title">01/04/2019 - 2.019 (the "this year" update)</div>'+
 	'<div class="listing">&bull; game has been renamed to "Cookie Clicker" to avoid confusion</div>'+
 	'<div class="listing">&bull; can now click the big cookie to generate cookies for free</div>'+
 	'<div class="listing">&bull; removed fall damage</div>'+
-	'<div class="listing">&bull; fixed various typos : player\'s name is now correctly spelled as "[bakeryName]"</div>'+
+	//'<div class="listing">&bull; fixed various typos : player\'s name is now correctly spelled as "[bakeryName]"</div>'+
 	'<div class="listing">&bull; removed all references to computer-animated movie <i style="font-style:italic;">Hoodwinked!</i> (2005)</div>'+
 	'<div class="listing">&bull; went back in time and invented cookies and computer mice, ensuring Cookie Clicker would one day come to exist</div>'+
 	'<div class="listing">&bull; game now fully compliant with Geneva Conventions</div>'+
 	'<div class="listing">&bull; dropped support for TI-84 version</div>'+
-	'<div class="listing">&bull; released a low-res retro version of the game, playable here : <a href="http://orteil.dashnet.org/experiments/cookie/" target="_blank">orteil.dashnet.org/experiments/cookie</a></div>'+
+	'<div class="listing">&bull; released a low-res retro version of the game, playable here : <a href="//orteil.dashnet.org/experiments/cookie/" target="_blank">orteil.dashnet.org/experiments/cookie</a></div>'+
 	'<div class="listing">&bull; updated version number</div>'+
 	
 	'</div><div class="subsection update small">'+
@@ -780,7 +857,7 @@ Game.Launch=function()
 	'<div class="listing">&bull; quality-of-life improvements : better bulk-buy, better switches etc</div>'+
 	'<div class="listing">&bull; added some <a href="http://en.wikipedia.org/wiki/'+choose(['Krzysztof_Arciszewski','Eustachy_Sanguszko','Maurycy_Hauke','Karol_Turno','Tadeusz_Kutrzeba','Kazimierz_Fabrycy','Florian_Siwicki'])+'" target="_blank">general polish</a></div>'+/* i liked this dumb pun too much to let it go unnoticed */
 	'<div class="listing">&bull; tons of other little things we can\'t even remember right now</div>'+
-	'<div class="listing">Miss the old version? Your old save was automatically exported <a href="http://orteil.dashnet.org/cookieclicker/v10466/" target="_blank">here</a>!</div>'+
+	'<div class="listing">Miss the old version? Your old save was automatically exported <a href="//orteil.dashnet.org/cookieclicker/v10466/" target="_blank">here</a>!</div>'+
 	
 	'</div><div class="subsection update small">'+
 	'<div class="title">05/02/2016 - legacy beta, more fixes</div>'+
@@ -861,7 +938,7 @@ Game.Launch=function()
 	'<div class="listing">&bull; prompts now have keyboard shortcuts like system prompts would</div>'+
 	'<div class="listing">&bull; naming your bakery? you betcha</div>'+
 	'<div class="listing">&bull; "Fast notes" option to make all notifications close faster; new button to close all notifications</div>'+
-	'<div class="listing">&bull; the dungeons beta is now available on <a href="http://orteil.dashnet.org/cookieclicker/betadungeons" target="_blank">/betadungeons</a></div>'+
+	'<div class="listing">&bull; the dungeons beta is now available on <a href="//orteil.dashnet.org/cookieclicker/betadungeons" target="_blank">/betadungeons</a></div>'+
 	
 	'</div><div class="subsection update small">'+
 	'<div class="title">09/04/2014 - nightmare in heaven</div>'+
@@ -877,7 +954,7 @@ Game.Launch=function()
 	'<div class="listing">&bull; implemented a simplified version of the <a href="https://github.com/Icehawk78/FrozenCookies" target="_blank">Frozen Cookies</a> add-on\'s short number formatting</div>'+
 	'<div class="listing">&bull; you can now buy 10 and sell all of a building at a time</div>'+
 	'<div class="listing">&bull; tons of optimizations and subtler changes</div>'+
-	'<div class="listing">&bull; you can now <a href="http://orteil.dashnet.org/cookies2cash/" target="_blank">convert your cookies to cash</a>!</div>'+
+	'<div class="listing">&bull; you can now <a href="//orteil.dashnet.org/cookies2cash/" target="_blank">convert your cookies to cash</a>!</div>'+
 	
 	'</div><div class="subsection update small">'+
 	'<div class="title">05/04/2014 - pity the fool</div>'+
@@ -886,7 +963,7 @@ Game.Launch=function()
 	'<div class="listing">&bull; miscellaneous fixes and tiny additions</div>'+
 	'<div class="listing">&bull; added a few very rudimentary mod hooks</div>'+
 	'<div class="listing">&bull; the game should work again in Opera</div>'+
-	'<div class="listing">&bull; don\'t forget to check out <a href="http://orteil.dashnet.org/randomgen/" target="_blank">RandomGen</a>, our all-purpose random generator maker!</div>'+
+	'<div class="listing">&bull; don\'t forget to check out <a href="//orteil.dashnet.org/randomgen/" target="_blank">RandomGen</a>, our all-purpose random generator maker!</div>'+
 	
 	'</div><div class="subsection update small">'+
 	'<div class="title">01/04/2014 - fooling around</div>'+
@@ -934,7 +1011,7 @@ Game.Launch=function()
 	'<div class="title">15/10/2013 - player-friendly</div>'+
 	'<div class="listing">&bull; heavenly upgrades are now way, way cheaper</div>'+
 	'<div class="listing">&bull; tier 5 building upgrades are 5 times cheaper</div>'+
-	'<div class="listing">&bull; cursors now just plain disappear with Fancy Graphics off, I might add a proper option to toggle only the cursors later</div>'+
+	'<div class="listing">&bull; cursors now just plain disappear with g off, I might add a proper option to toggle only the cursors later</div>'+
 	'<div class="listing">&bull; warning : the Cookie Monster add-on seems to be buggy with this update, you might want to wait until its programmer updates it</div>'+
 	
 	'</div><div class="subsection update small">'+
@@ -962,11 +1039,11 @@ Game.Launch=function()
 	'<div class="listing">&bull; antimatter condensers are back to their previous price</div>'+
 	'<div class="listing">&bull; heavenly chips now give +2% CpS again (they will be extensively reworked in the future)</div>'+
 	'<div class="listing">&bull; farms have been buffed a bit (to popular demand)</div>'+
-	'<div class="listing">&bull; dungeons still need a bit more work and will be released soon - we want them to be just right! (you can test an unfinished version in <a href="http://orteil.dashnet.org/cookieclicker/betadungeons/" target="_blank">the beta</a>)</div>'+
+	'<div class="listing">&bull; dungeons still need a bit more work and will be released soon - we want them to be just right! (you can test an unfinished version in <a href="//orteil.dashnet.org/cookieclicker/betadungeons/" target="_blank">the beta</a>)</div>'+
 	
 	'</div><div class="subsection update">'+
 	'<div class="title">28/09/2013 - dungeon beta</div>'+
-	'<div class="listing">&bull; from now on, big updates will come through a beta stage first (you can <a href="http://orteil.dashnet.org/cookieclicker/betadungeons/" target="_blank">try it here</a>)</div>'+
+	'<div class="listing">&bull; from now on, big updates will come through a beta stage first (you can <a href="//orteil.dashnet.org/cookieclicker/betadungeons/" target="_blank">try it here</a>)</div>'+
 	'<div class="listing">&bull; first dungeons! (you need 50 factories to unlock them!)</div>'+
 	'<div class="listing">&bull; cookie chains can be longer</div>'+
 	'<div class="listing">&bull; antimatter condensers are a bit more expensive</div>'+
@@ -1098,7 +1175,7 @@ Game.Launch=function()
 		l('javascriptError').innerHTML=
 		'<div class="title">Oops. Wrong address!</div>'+
 		'<div>It looks like you\'re accessing Cookie Clicker from another URL than the official one.<br>'+
-		'You can <a href="http://orteil.dashnet.org/cookieclicker/" target="_blank">play Cookie Clicker over here</a>!<br>'+
+		'You can <a href="//orteil.dashnet.org/cookieclicker/" target="_blank">play Cookie Clicker over here</a>!<br>'+
 		'<small>(If for any reason, you are unable to access the game on the official URL, we are currently working on a second domain.)</small></div>';
 	}
 	Game.timedout=false;
@@ -1151,7 +1228,7 @@ Game.Launch=function()
 		
 		Game.SaveTo='CookieClickerGame';
 		if (Game.beta) Game.SaveTo='CookieClickerGameBeta';
-		l('versionNumber').innerHTML='v. '+Game.version+(Game.beta?' <span style="color:#ff0;">beta</span>':'');
+		l('versionNumber').innerHTML='v. '+Game.version+'<div id="httpsSwitch" style="cursor:pointer;display:inline-block;background:url(img/'+(Game.https?'lockOn':'lockOff')+'.png);width:16px;height:16px;position:relative;top:4px;left:0px;margin:0px -2px;"></div>'+(Game.beta?' <span style="color:#ff0;">beta</span>':'');
 		
 		if (Game.beta) {var me=l('linkVersionBeta');me.parentNode.removeChild(me);}
 		else if (Game.version==1.0466) {var me=l('linkVersionOld');me.parentNode.removeChild(me);}
@@ -1188,6 +1265,8 @@ Game.Launch=function()
 		Game.cookies=0;//cookies
 		Game.cookiesd=0;//cookies display
 		Game.cookiesPs=1;//cookies per second (to recalculate with every new purchase)
+		Game.cookiesPsRaw=0;//raw cookies per second
+		Game.cookiesPsRawHighest=0;//highest raw cookies per second this ascension
 		Game.cookiesReset=0;//cookies lost to resetting (used to determine prestige and heavenly chips)
 		Game.cookieClicks=0;//+1 for each click on the cookie
 		Game.goldenClicks=0;//+1 for each golden cookie clicked (all time)
@@ -1211,7 +1290,7 @@ Game.Launch=function()
 		Game.lumps=-1;//sugar lumps
 		Game.lumpsTotal=-1;//sugar lumps earned across all playthroughs (-1 means they haven't even started yet)
 		Game.lumpT=Date.now();//time when the current lump started forming
-		Game.lumpRefill=0;//time when we last used a sugar lump (on minigame refills etc)
+		Game.lumpRefill=0;//time left before a sugar lump can be used again (on minigame refills etc) in logic frames
 		
 		Game.makeSeed=function()
 		{
@@ -1241,6 +1320,9 @@ Game.Launch=function()
 		Game.dragonLevel=0;
 		Game.dragonAura=0;
 		Game.dragonAura2=0;
+		
+		Game.fortuneGC=0;
+		Game.fortuneCPS=0;
 		
 		Game.blendModesOn=(document.createElement('detect').style.mixBlendMode==='');
 		
@@ -1328,24 +1410,164 @@ Game.Launch=function()
 		}
 		
 		/*=====================================================================================
-		MOD HOOKS (will be subject to change, probably shouldn't be used yet)
+		MODDING API
 		=======================================================================================*/
-		//really primitive custom mods support - might not be of any use at all (could theoretically be used for custom upgrades and achievements I guess?)
-		Game.customChecks=[];//push functions into this to add them to the "check for upgrade/achievement conditions" that happens every few seconds
-		Game.customInit=[];//add to the initialization call
-		Game.customLogic=[];//add to the logic calls
-		Game.customDraw=[];//add to the draw calls
-		Game.customSave=[];//add to the save write calls (save to your own localstorage key)
-		Game.customLoad=[];//add to the save load calls
-		Game.customReset=[];//add to the reset calls
-		Game.customTickers=[];//add to the random tickers (functions should return arrays of text)
-		Game.customCps=[];//add to the CpS computation (functions should return something to add to the multiplier ie. 0.1 for an addition of 10 to the CpS multiplier)
-		Game.customCpsMult=[];//add to the CpS multiplicative computation (functions should return something to multiply by the multiplier ie. 1.05 for a 5% increase of the multiplier)
-		Game.customMouseCps=[];//add to the cookies earned per click computation (functions should return something to add to the multiplier ie. 0.1 for an addition of 10 to the CpS multiplier)
-		Game.customMouseCpsMult=[];//add to the cookies earned per click multiplicative computation (functions should return something to multiply by the multiplier ie. 1.05 for a 5% increase of the multiplier)
-		Game.customCookieClicks=[];//add to the cookie click calls
-		Game.customCreate=[];//create your new upgrades and achievements in there
-
+		/*
+			to use:
+			-have your mod call Game.registerMod("unique id",mod object)
+			-the "unique id" value is a string the mod will use to index and retrieve its save data; special characters are ignored
+			-the "mod object" value is an object structured like so:
+				{
+					init:function(){
+						//this function is called as soon as the mod is registered
+						//declare hooks here
+					},
+					save:function(){
+						//use this to store persistent data associated with your mod
+						return 'a string to be saved';
+					},
+					load:function(str){
+						//do stuff with the string data you saved previously
+					},
+				}
+			-the mod object may also contain any other data or functions you want, for instance to make them accessible to other mods
+			-your mod and its data can be accessed with Game.mods['mod id']
+			-hooks are functions the game calls automatically in certain circumstances, like when calculating cookies per click or when redrawing the screen
+			-to add a hook: Game.registerHook('hook id',yourFunctionHere) - note: you can also declare whole arrays of hooks, ie. Game.registerHook('hook id',[function1,function2,...])
+			-to remove a hook: Game.removeHook('hook id',theSameFunctionHere)
+			-some hooks are fed a parameter you can use in the function
+			-list of valid hook ids:
+				'logic' - called every logic tick
+				'draw' - called every draw tick
+				'reset' - called whenever the player resets; parameter is true if this is a hard reset, false if it's an ascension
+				'reincarnate' - called when the player has reincarnated after an ascension
+				'ticker' - called when determining news ticker text; should return an array of possible choices to add
+				'cps' - called when determining the CpS; parameter is the current CpS; should return the modified CpS
+				'cookiesPerClick' - called when determining the cookies per click; parameter is the current value; should return the modified value
+				'click' - called when the big cookie is clicked
+				'create' - called after the game declares all buildings, upgrades and achievs; use this to declare your own - note that saving/loading functionality for custom content is not explicitly implemented and may be unpredictable and broken
+				'check' - called every few seconds when we check for upgrade/achiev unlock conditions; you can also use this for other checks that you don't need happening every logic frame
+			-function hooks are provided for convenience and more advanced mod functionality will probably involve manual code injection
+			-please be mindful of the length of the data you save, as it does inflate the export-save-to-string feature
+			
+			NOTE: modding API is susceptible to change and may not always function super-well
+		*/
+		Game.mods={};
+		Game.sortedMods=[];
+		Game.modSaveData={};
+		Game.modHooks={};
+		Game.modHooksNames=['logic','draw','reset','reincarnate','ticker','cps','cookiesPerClick','click','create','check'];
+		for (var i=0;i<Game.modHooksNames.length;i++){Game.modHooks[Game.modHooksNames[i]]=[];}
+		Game.registerMod=function(id,obj)
+		{
+			id=id.replace(/\W+/g,' ');
+			if (Game.mods[id]) {console.log('ERROR: mod already registered with the id "'+id+'".');return false;}
+			Game.mods[id]=obj;
+			Game.sortedMods.push(obj);
+			obj.id=id;
+			console.log('Mod "'+id+'" added.');
+			if (Game.Win) Game.Win('Third-party');
+			if (obj.init) obj.init();
+			if (obj.load && Game.modSaveData[id]) obj.load(Game.modSaveData[id]);
+		}
+		Game.registerHook=function(hook,func)
+		{
+			if (func.constructor===Array)
+			{
+				for (var i=0;i<func.length;i++){Game.registerHook(hook,func[i]);}
+				return;
+			}
+			if (typeof func!=='function') return;
+			if (typeof Game.modHooks[hook]!=='undefined') Game.modHooks[hook].push(func);
+			else console.log('Error: a mod tried to register a non-existent hook named "'+hook+'".');
+		}
+		Game.removeHook=function(hook,func)
+		{
+			if (func.constructor===Array)
+			{
+				for (var i=0;i<func.length;i++){Game.removeHook(hook,func[i]);}
+				return;
+			}
+			if (typeof func!=='function') return;
+			if (typeof Game.modHooks[hook]!=='undefined' && Game.modHooks[hook].indexOf(func)!=-1) Game.modHooks[hook].splice(Game.modHooks[hook].indexOf(func),1);
+			else console.log('Error: a mod tried to remove a non-existent hook named "'+hook+'".');
+		}
+		Game.runModHook=function(hook,param)
+		{
+			for (var i=0;i<Game.modHooks[hook].length;i++)
+			{
+				Game.modHooks[hook][i](param);
+			}
+		}
+		Game.runModHookOnValue=function(hook,val)
+		{
+			for (var i=0;i<Game.modHooks[hook].length;i++)
+			{
+				val=Game.modHooks[hook][i](val);
+			}
+			return val;
+		}
+		Game.safeSaveString=function(str)
+		{
+			//look as long as it works
+			str=replaceAll('|','[P]',str);
+			str=replaceAll(';','[S]',str);
+			return str;
+		}
+		Game.safeLoadString=function(str)
+		{
+			str=replaceAll('[P]','|',str);
+			str=replaceAll('[S]',';',str);
+			return str;
+		}
+		Game.saveModData=function()
+		{
+			var str='';
+			for (var i=0;i<Game.sortedMods.length;i++)
+			{
+				if (Game.sortedMods[i]['save']) Game.modSaveData[Game.sortedMods[i].id]=Game.sortedMods[i]['save']();
+			}
+			for (var i in Game.modSaveData)
+			{
+				str+=i+':'+Game.safeSaveString(Game.modSaveData[i])+';';
+			}
+			return str;
+		}
+		Game.loadModData=function()
+		{
+			for (var i in Game.modSaveData)
+			{
+				if (Game.mods[i] && Game.mods[i]['load']) Game.mods[i]['load'](Game.modSaveData[i]);
+			}
+		}
+		Game.deleteModData=function(id)
+		{
+			if (Game.modSaveData[id]) delete Game.modSaveData[id];
+		}
+		Game.deleteAllModData=function()
+		{
+			Game.modSaveData={};
+		}
+		Game.CheckModData=function()
+		{
+			var modsN=0;
+			var str='';
+			for (var i in Game.modSaveData)
+			{
+				str+='<div style="border-bottom:1px dashed rgba(255,255,255,0.2);clear:both;overflow:hidden;padding:4px 0px;">';
+					str+='<div style="float:left;width:49%;text-align:left;overflow:hidden;"><b>'+i+'</b>';
+						if (Game.mods[i]) str+=' (loaded)';
+					str+='</div>';
+					str+='<div style="float:right;width:49%;text-align:right;overflow:hidden;">'+Game.modSaveData[i].length+' chars <a class="option warning" style="padding:0px 2px;font-size:10px;margin:0px;vertical-align:top;" '+Game.clickStr+'="Game.deleteModData(\''+i+'\');PlaySound(\'snd/tick.mp3\');Game.ClosePrompt();Game.CheckModData();">X</a>';
+					str+='</div>';
+				str+='</div>';
+				modsN++;
+			}
+			if (modsN==0) str+='No mod data present.';
+			else str+='<div><a class="option warning" style="font-size:11px;margin-top:4px;" '+Game.clickStr+'="Game.deleteAllModData();PlaySound(\'snd/tick.mp3\');Game.ClosePrompt();Game.CheckModData();">Delete all</a></div>';
+			Game.Prompt('<h3>Mod data</h3><div class="block">These are the mods present in your save data. You may delete some of this data to make your save file smaller.</div><div class="block" style="font-size:11px;">'+str+'</div>',['Back']);
+		}
+		
 		Game.LoadMod=function(url)//this loads the mod at the given URL and gives the script an automatic id (URL "http://example.com/my_mod.js" gives the id "modscript_my_mod")
 		{
 			var js=document.createElement('script');
@@ -1357,13 +1579,47 @@ Game.Launch=function()
 			console.log('Loaded the mod '+url+', '+id+'.');
 		}
 		
+		
+		
+		if (false)
+		{
+			//EXAMPLE MOD
+			Game.registerMod('test mod',{
+				/*
+					what this example mod does:
+					-double your CpS
+					-display a little popup for half a second whenever you click the big cookie
+					-add a little intro text above your bakery name, and generate that intro text at random if you don't already have one
+					-save and load your intro text
+				*/
+				init:function(){
+					Game.registerHook('reincarnate',function(){Game.mods['test mod'].addIntro();});
+					Game.registerHook('check',function(){if (!Game.playerIntro){Game.mods['test mod'].addIntro();}});
+					Game.registerHook('click',function(){Game.Notify(choose(['A good click.','A solid click.','A mediocre click.','An excellent click!']),'',0,0.5);});
+					Game.registerHook('cps',function(cps){return cps*2;});
+				},
+				save:function(){
+					//note: we use stringified JSON for ease and clarity but you could store any type of string
+					return JSON.stringify({text:Game.playerIntro})
+				},
+				load:function(str){
+					var data=JSON.parse(str);
+					if (data.text) Game.mods['test mod'].addIntro(data.text);
+				},
+				addIntro:function(text){
+					//note: this is not a mod hook, just a function that's part of the mod
+					Game.playerIntro=text||choose(['oh snap, it\'s','watch out, it\'s','oh no! here comes','hide your cookies, for here comes','behold! it\'s']);
+					if (!l('bakerySubtitle')) l('bakeryName').insertAdjacentHTML('afterend','<div id="bakerySubtitle" class="title" style="text-align:center;position:absolute;left:0px;right:0px;bottom:32px;font-size:12px;pointer-events:none;text-shadow:0px 1px 1px #000,0px 0px 4px #f00;opacity:0.8;"></div>');
+					l('bakerySubtitle').textContent='~'+Game.playerIntro+'~';
+				},
+			});
+		}
+		
+		
+		
 		//replacing an existing canvas picture with a new one at runtime : Game.Loader.Replace('perfectCookie.png','imperfectCookie.png');
 		//upgrades and achievements can use other pictures than icons.png; declare their icon with [posX,posY,'http://example.com/myIcons.png']
-		//check out the "UNLOCKING STUFF" section to see how unlocking achievs and upgrades is done (queue yours in Game.customChecks)
-		//if you're making a mod, don't forget to add a Game.Win('Third-party') somewhere in there!
-		
-		//IMPORTANT : all of the above is susceptible to heavy change, proper modding API in the works
-		
+		//check out the "UNLOCKING STUFF" section to see how unlocking achievs and upgrades is done
 		
 		
 		
@@ -1377,7 +1633,7 @@ Game.Launch=function()
 		Game.GetBakeryName=function() {return Game.RandomBakeryName();}
 		Game.bakeryName=Game.GetBakeryName();
 		Game.bakeryNameL=l('bakeryName');
-		Game.bakeryNameL.innerHTML=Game.bakeryName+'\'s bakery';
+		Game.bakeryNameL.textContent=Game.bakeryName+'\'s bakery';
 		Game.bakeryNameSet=function(what)
 		{
 			Game.bakeryName=what.replace(/\W+/g,' ');
@@ -1388,7 +1644,7 @@ Game.Launch=function()
 		{
 			var name=Game.bakeryName;
 			if (name.slice(-1).toLowerCase()=='s') name+='\' bakery'; else name+='\'s bakery';
-			Game.bakeryNameL.innerHTML=name;
+			Game.bakeryNameL.textContent=name;
 			name=Game.bakeryName.toLowerCase();
 			if (name=='orteil') Game.Win('God complex');
 			if (name.indexOf('saysopensesame',name.length-('saysopensesame').length)>0 && !Game.sesame) Game.OpenSesame();
@@ -1422,7 +1678,7 @@ Game.Launch=function()
 			var tt=this.tt;
 			var tta=this.tta;
 			tt.style.left='auto';
-			tt.style.top='auto';
+			tt.style.ff='auto';
 			tt.style.right='auto';
 			tt.style.bottom='auto';
 			if (typeof this.text==='function')
@@ -1532,7 +1788,7 @@ Game.Launch=function()
 			this.tta.style.top=Y+'px';
 			this.tta.style.bottom='auto';
 			if (this.shouldHide) {this.hide();this.shouldHide=0;}
-			else if (Game.drawT%10==0 && typeof(this.text)=='function')
+			else if (Game.drawT%10==0 && typeof(this.text)==='function')
 			{
 				var text=this.text();
 				if (text=='') this.tta.style.opacity='0';
@@ -1646,11 +1902,19 @@ Game.Launch=function()
 					Game.customGrandmaNames=Game.customGrandmaNames.filter(function(el){return el!='';});
 				}
 				
-				l('heraldsAmount').innerHTML=Game.heralds;
+				l('heraldsAmount').textContent=Game.heralds;
 				Game.externalDataLoaded=true;
 			}catch(e){}
 		}
 		
+		
+		
+		Game.attachTooltip(l('httpsSwitch'),'<div style="padding:8px;width:350px;text-align:center;font-size:11px;">You are currently playing Cookie Clicker on the <b>'+(Game.https?'HTTPS':'HTTP')+'</b> protocol.<br>The <b>'+(Game.https?'HTTP':'HTTPS')+'</b> version uses a different save slot than this one.<br>Click this lock to reload the page and switch to the <b>'+(Game.https?'HTTP':'HTTPS')+'</b> version!</div>','this');
+		AddEvent(l('httpsSwitch'),'click',function(){
+			PlaySound('snd/pop'+Math.floor(Math.random()*3+1)+'.mp3',0.75);
+			if (location.protocol=='https:') location.href='http:'+window.location.href.substring(window.location.protocol.length);
+			else if (location.protocol=='http:') location.href='https:'+window.location.href.substring(window.location.protocol.length);
+		});
 		
 		Game.attachTooltip(l('topbarOrteil'),'<div style="padding:8px;width:250px;text-align:center;">Back to Orteil\'s subdomain!<br>Lots of other games in there!</div>','this');
 		Game.attachTooltip(l('topbarDashnet'),'<div style="padding:8px;width:250px;text-align:center;">Back to our homepage!</div>','this');
@@ -1659,8 +1923,10 @@ Game.Launch=function()
 		Game.attachTooltip(l('topbarDiscord'),'<div style="padding:8px;width:250px;text-align:center;">Our official discord server.<br>You can share tips and questions about Cookie Clicker and all our other games!</div>','this');
 		Game.attachTooltip(l('topbarPatreon'),'<div style="padding:8px;width:250px;text-align:center;">Support us on Patreon and help us keep updating Cookie Clicker!<br>There\'s neat rewards for patrons too!</div>','this');
 		Game.attachTooltip(l('topbarMerch'),'<div style="padding:8px;width:250px;text-align:center;">Cookie Clicker shirts, hoodies and stickers!</div>','this');
+		Game.attachTooltip(l('topbarMobileCC'),'<div style="padding:8px;width:250px;text-align:center;">Play Cookie Clicker on your phone!<br>(Android only; iOS version will be released later)</div>','this');
 		Game.attachTooltip(l('topbarRandomgen'),'<div style="padding:8px;width:250px;text-align:center;">A thing we made that lets you write random generators.</div>','this');
 		Game.attachTooltip(l('topbarIGM'),'<div style="padding:8px;width:250px;text-align:center;">A thing we made that lets you create your own idle games using a simple scripting language.</div>','this');
+		Game.attachTooltip(l('back'),'<div style="padding:8px;width:250px;text-align:center;">Back to Home.</div>','this');
 		
 		Game.attachTooltip(l('heralds'),function(){
 			var str='';
@@ -1684,7 +1950,7 @@ Game.Launch=function()
 			
 			return '<div style="padding:8px;width:300px;text-align:center;" class="prompt"><h3>Heralds</h3><div class="block">'+str+'</div></div>';
 		},'this');
-		l('heraldsAmount').innerHTML='?';
+		l('heraldsAmount').textContent='?';
 		l('heralds').style.display='inline-block';
 		
 		Game.GrabData();
@@ -1837,6 +2103,9 @@ Game.Launch=function()
 			(type==3?'\n	sugar lump type : ':'')+parseInt(Math.floor(Game.lumpCurrentType))+';'+
 			(type==3?'\n	vault : ':'')+Game.vault.join(',')+';'+
 			(type==3?'\n	heralds : ':'')+parseInt(Game.heralds)+';'+
+			(type==3?'\n	golden cookie fortune : ':'')+parseInt(Game.fortuneGC)+';'+
+			(type==3?'\n	CpS fortune : ':'')+parseInt(Game.fortuneCPS)+';'+
+			(type==3?'\n	highest raw CpS : ':'')+parseFloat(Game.cookiesPsRawHighest)+';'+
 			'|';//cookies and lots of other stuff
 			
 			if (type==3) str+='\n\nBuildings : amount, bought, cookies produced, level, minigame data';
@@ -1849,6 +2118,7 @@ Game.Launch=function()
 					str+=me.amount+','+me.bought+','+parseFloat(Math.floor(me.totalCookies))+','+parseInt(me.level);
 					if (Game.isMinigameReady(me)) str+=','+me.minigame.save(); else str+=',';
 					str+=','+(me.muted?'1':'0');
+					str+=','+me.highest;
 					str+=';';
 				}
 			}
@@ -1895,9 +2165,10 @@ Game.Launch=function()
 			}
 			
 			
-			if (type==3) str+='\n';
+			if (type==3) str+='\n\nCustom :\n';
 			
-			for (var i in Game.customSave) {Game.customSave[i]();}
+			str+='|';
+			str+=Game.saveModData();
 			
 			if (type==2 || type==3)
 			{
@@ -2046,7 +2317,7 @@ Game.Launch=function()
 						Game.startDate=parseInt(spl[0]);
 						Game.fullDate=parseInt(spl[1]);
 						Game.lastDate=parseInt(spl[2]);
-						Game.bakeryName=spl[3]?spl[3]:Game.GetBakeryName();
+						Game.bakeryNameSet(spl[3]?spl[3]:Game.GetBakeryName());
 						Game.seed=spl[4]?spl[4]:Game.makeSeed();
 						//prefs
 						if (version<1.0503) spl=str[3].split('');
@@ -2118,11 +2389,15 @@ Game.Launch=function()
 						Game.lumpsTotal=spl[43]?parseFloat(spl[43]):-1;
 						Game.lumpT=spl[44]?parseInt(spl[44]):Date.now();
 						Game.lumpRefill=spl[45]?parseInt(spl[45]):0;
+						if (version<2.022) Game.lumpRefill=Game.fps*60;
 						Game.lumpCurrentType=spl[46]?parseInt(spl[46]):0;
 						Game.vault=spl[47]?spl[47].split(','):[];
 							for (var i in Game.vault){Game.vault[i]=parseInt(Game.vault[i]);}
 						var actualHeralds=Game.heralds;//we store the actual amount of heralds to restore it later; here we used the amount present in the save to compute offline CpS
 						Game.heralds=spl[48]?parseInt(spl[48]):Game.heralds;
+						Game.fortuneGC=spl[49]?parseInt(spl[49]):0;
+						Game.fortuneCPS=spl[50]?parseInt(spl[50]):0;
+						Game.cookiesPsRawHighest=spl[51]?parseFloat(spl[51]):0;
 						
 						spl=str[5].split(';');//buildings
 						Game.BuildingsOwned=0;
@@ -2134,7 +2409,7 @@ Game.Launch=function()
 							if (spl[i])
 							{
 								var mestr=spl[i].toString().split(',');
-								me.amount=parseInt(mestr[0]);me.bought=parseInt(mestr[1]);me.totalCookies=parseFloat(mestr[2]);me.level=parseInt(mestr[3]||0);
+								me.amount=parseInt(mestr[0]);me.bought=parseInt(mestr[1]);me.totalCookies=parseFloat(mestr[2]);me.level=parseInt(mestr[3]||0);me.highest=(version>=2.024?parseInt(mestr[6]):me.amount);
 								if (me.minigame && me.minigameLoaded && me.minigame.reset) {me.minigame.reset(true);me.minigame.load(mestr[4]||'');} else me.minigameSave=(mestr[4]||0);
 								me.muted=parseInt(mestr[5])||0;
 								Game.BuildingsOwned+=me.amount;
@@ -2142,7 +2417,7 @@ Game.Launch=function()
 							}
 							else
 							{
-								me.amount=0;me.unlocked=0;me.bought=0;me.totalCookies=0;me.level=0;
+								me.amount=0;me.unlocked=0;me.bought=0;me.highest=0;me.totalCookies=0;me.level=0;
 							}
 						}
 						
@@ -2275,6 +2550,20 @@ Game.Launch=function()
 						}
 						
 						
+						spl=(str[9]||'').split(';');//mod data
+						
+						for (var i in spl)
+						{
+							if (spl[i])
+							{
+								var data=spl[i].split(':');
+								var modId=data[0];
+								data.shift();
+								data=Game.safeLoadString(data.join(':'));
+								Game.modSaveData[modId]=data;
+							}
+						}
+						
 						for (var i in Game.ObjectsById)
 						{
 							var me=Game.ObjectsById[i];
@@ -2316,6 +2605,7 @@ Game.Launch=function()
 						//{Game.heavenlyChips=Game.prestige;Game.heavenlyChipsSpent=0;}//chips owned and spent don't add up to total prestige? set chips owned to prestige
 						
 						
+						Game.loadModData();
 						
 						
 						if (version==1.037 && Game.beta)//are we opening the new beta? if so, save the old beta to /betadungeons
@@ -2363,11 +2653,9 @@ Game.Launch=function()
 						
 						Game.CalculateGains();
 						
-						if (Math.random()<1/10000) Game.TOYS=1;//teehee!
-						
 						var timeOffline=(Date.now()-Game.lastDate)/1000;
 						
-						Game.loadLumps(timeOffline);
+						if (Math.random()<1/10000) Game.TOYS=1;//teehee!
 						
 						//compute cookies earned while the game was closed
 						if (Game.mobile || Game.Has('Perfect idling') || Game.Has('Twin Gates of Transcendence'))
@@ -2401,6 +2689,7 @@ Game.Launch=function()
 								
 								if (Game.Has('Fern tea')) percent+=3;
 								if (Game.Has('Ichor syrup')) percent+=7;
+								if (Game.Has('Fortune #102')) percent+=1;
 							}
 							
 							var timeOfflineOptimal=Math.min(timeOffline,maxTime);
@@ -2423,6 +2712,8 @@ Game.Launch=function()
 							Game.gainBuff(type.name,parseFloat(mestr[1])/Game.fps,parseFloat(mestr[3]||0),parseFloat(mestr[4]||0),parseFloat(mestr[5]||0)).time=parseFloat(mestr[2]);
 						}
 						
+						
+						Game.loadLumps(timeOffline);
 			
 						Game.bakeryNameRefresh();
 						
@@ -2437,6 +2728,7 @@ Game.Launch=function()
 					Game.RebuildUpgrades();
 					
 					Game.TickerAge=0;
+					Game.TickerEffect=0;
 					
 					Game.elderWrathD=0;
 					Game.recalculateGains=1;
@@ -2505,6 +2797,8 @@ Game.Launch=function()
 				if (cookiesForfeited>=1000000000000000000000000000000000000000000) Game.Win('The end of the world');
 				if (cookiesForfeited>=1000000000000000000000000000000000000000000000) Game.Win('Oh, you\'re back');
 				if (cookiesForfeited>=1000000000000000000000000000000000000000000000000) Game.Win('Lazarus');
+				if (cookiesForfeited>=1000000000000000000000000000000000000000000000000000) Game.Win('Smurf account');
+				if (cookiesForfeited>=1000000000000000000000000000000000000000000000000000000) Game.Win('If at first you don\'t succeed');
 				
 				if (Math.round(Game.cookies)==1000000000000) Game.Win('When the cookies ascend just right');
 			}
@@ -2521,6 +2815,7 @@ Game.Launch=function()
 			//Game.goldenClicks=0;
 			//Game.missedGoldenClicks=0;
 			Game.handmadeCookies=0;
+			Game.cookiesPsRawHighest=0;
 			if (hard)
 			{
 				Game.bgType=0;
@@ -2553,6 +2848,11 @@ Game.Launch=function()
 			Game.dragonAura=0;
 			Game.dragonAura2=0;
 			
+			Game.fortuneGC=0;
+			Game.fortuneCPS=0;
+			
+			Game.TickerClicks=0;
+			
 			if (Game.gainedPrestige>0) Game.resets++;
 			if (!hard && Game.canLumps() && Game.ascensionMode!=1) Game.addClass('lumpsOn');
 			else Game.removeClass('lumpsOn');
@@ -2561,7 +2861,7 @@ Game.Launch=function()
 			for (var i in Game.ObjectsById)
 			{
 				var me=Game.ObjectsById[i];
-				me.amount=0;me.bought=0;me.free=0;me.totalCookies=0;
+				me.amount=0;me.bought=0;me.highest=0;me.free=0;me.totalCookies=0;
 				me.switchMinigame(false);
 				if (hard) {me.muted=0;}
 				me.pics=[];
@@ -2571,9 +2871,12 @@ Game.Launch=function()
 			{
 				var me=Game.UpgradesById[i];
 				if (hard || me.pool!='prestige') me.bought=0;
-				if (hard || (me.pool!='prestige' && !me.lasting))
+				if (hard) me.unlocked=0;
+				if (me.pool!='prestige' && !me.lasting)
 				{
-					if (!hard && Game.Has('Keepsakes') && Game.seasonDrops.indexOf(me.name)!=-1 && Math.random()<1/5){}
+					if (Game.Has('Keepsakes') && Game.seasonDrops.indexOf(me.name)!=-1 && Math.random()<1/5){}
+					else if (Game.ascensionMode==1 && Game.HasAchiev('O Fortuna') && me.tier=='fortune'){}
+					else if (Game.HasAchiev('O Fortuna') && me.tier=='fortune' && Math.random()<0.4){}
 					else me.unlocked=0;
 				}
 			}
@@ -2610,6 +2913,7 @@ Game.Launch=function()
 			
 			Game.RebuildUpgrades();
 			Game.TickerAge=0;
+			Game.TickerEffect=0;
 			Game.recalculateGains=1;
 			Game.storeToRefresh=1;
 			Game.upgradesToRebuild=1;
@@ -2628,12 +2932,12 @@ Game.Launch=function()
 			l('toggleBox').style.display='none';
 			l('toggleBox').innerHTML='';
 			Game.choiceSelectorOn=-1;
-			Game.specialTab='';
 			Game.ToggleSpecialMenu(0);
+			Game.specialTab='';
 			
 			l('logButton').classList.remove('hasUpdate');
 			
-			for (var i in Game.customReset) {Game.customReset[i]();}
+			Game.runModHook('reset',hard);
 			
 			if (hard)
 			{
@@ -2878,14 +3182,15 @@ Game.Launch=function()
 			{
 				if (me.pool!='toggle' && me.pool!='tech')
 				{
+					var purchase=me.kitten?'purrchase':'purchase';
 					if (Game.Has('Inspired checklist'))
 					{
-						if (me.isVaulted()) tip='Upgrade is vaulted and will not be auto-purchased.<br>Click to purchase. Shift-click to unvault.';
-						else tip='Click to purchase. Shift-click to vault.';
+						if (me.isVaulted()) tip='Upgrade is vaulted and will not be auto-'+purchase+'d.<br>Click to '+purchase+'. Shift-click to unvault.';
+						else tip='Click to '+purchase+'. Shift-click to vault.';
 						if (Game.keys[16]) tip+='<br>(You are holding Shift.)';
 						else tip+='<br>(You are not holding Shift.)';
 					}
-					else tip='Click to purchase.';
+					else tip='Click to '+purchase+'.';
 				}
 				else if (me.pool=='toggle' && me.choicesFunction) tip='Click to open selector.';
 				else if (me.pool=='toggle') tip='Click to toggle.';
@@ -2893,7 +3198,7 @@ Game.Launch=function()
 			}
 			
 			var desc=me.desc;
-			if (me.descFunc) desc=me.descFunc();
+			if (me.descFunc) desc=me.descFunc(context);
 			if (me.bought && context=='store' && me.displayFuncWhenOwned) desc=me.displayFuncWhenOwned()+'<div class="line"></div>'+desc;
 			if (me.unlockAt)
 			{
@@ -2975,7 +3280,8 @@ Game.Launch=function()
 			if (Game.Has('Heavenly bakery')) heavenlyMult+=0.25;
 			if (Game.Has('Heavenly confectionery')) heavenlyMult+=0.25;
 			if (Game.Has('Heavenly key')) heavenlyMult+=0.25;
-			if (Game.hasAura('Dragon God')) heavenlyMult*=1.05;
+			//if (Game.hasAura('Dragon God')) heavenlyMult*=1.05;
+			heavenlyMult*=1+Game.auraMult('Dragon God')*0.05;
 			if (Game.Has('Lucky digit')) heavenlyMult*=1.01;
 			if (Game.Has('Lucky number')) heavenlyMult*=1.01;
 			if (Game.Has('Lucky payout')) heavenlyMult*=1.01;
@@ -3051,13 +3357,13 @@ Game.Launch=function()
 		l('ascendOverlay').innerHTML=
 			'<div id="ascendBox">'+
 			'<div class="ascendData smallFramed prompt" '+Game.getTooltip(
-							'<div style="min-width:200px;text-align:center;font-size:11px;">Each prestige level grants you a permanent +1% CpS.<br>The more levels you have, the more cookies they require.</div>'
+							'<div style="min-width:300px;text-align:center;font-size:11px;">Each prestige level grants you a permanent <b>+1% CpS</b>.<br>The more levels you have, the more cookies they require.</div>'
 							,'bottom-right')+' style="margin-top:8px;"><h3 id="ascendPrestige"></h3></div>'+
 			'<div class="ascendData smallFramed prompt" '+Game.getTooltip(
-							'<div style="min-width:200px;text-align:center;font-size:11px;">Heavenly chips are used to buy heavenly upgrades.<br>You gain 1 chip every time you gain a prestige level.</div>'
+							'<div style="min-width:300px;text-align:center;font-size:11px;">Heavenly chips are used to buy heavenly upgrades.<br>You gain <b>1 chip</b> every time you gain a prestige level.</div>'
 							,'bottom-right')+'><h3 id="ascendHCs"></h3></div>'+
 			'<a id="ascendButton" class="option framed large red" '+Game.getTooltip(
-							'<div style="min-width:200px;text-align:center;font-size:11px;">Click this once you\'ve bought<br>everything you need!</div>'
+							'<div style="min-width:300px;text-align:center;font-size:11px;">Click this once you\'ve bought<br>everything you need!</div>'
 							,'bottom-right')+' style="font-size:16px;margin-top:0px;"><span class="fancyText" style="font-size:20px;">Reincarnate</span></a>'+
 			'<div id="ascendModeButton" style="position:absolute;right:34px;bottom:25px;display:none;"></div>'+
 			'<input type="text" style="display:block;" id="upgradePositions"/></div>'+
@@ -3135,6 +3441,8 @@ Game.Launch=function()
 				Game.ReincarnateTimer=1;
 				Game.addClass('reincarnating');
 				Game.BigCookieSize=0;
+				
+				Game.runModHook('reincarnate');
 			}
 		}
 		Game.GiveUpAscend=function(bypass)
@@ -3299,8 +3607,8 @@ Game.Launch=function()
 			
 			if (Game.T%2==0)
 			{
-				l('ascendPrestige').innerHTML='Prestige level :<br>'+Beautify(Game.prestige);
-				l('ascendHCs').innerHTML='Heavenly chips :<br><span class="price heavenly">'+Beautify(Math.round(Game.heavenlyChipsDisplayed))+'</span>';
+				l('ascendPrestige').innerHTML='Prestige level :<br>'+SimpleBeautify(Game.prestige);
+				l('ascendHCs').innerHTML='Heavenly chips :<br><span class="price heavenly">'+SimpleBeautify(Math.round(Game.heavenlyChipsDisplayed))+'</span>';
 				if (Game.prestige>0) l('ascendModeButton').style.display='block';
 				else l('ascendModeButton').style.display='none';
 			}
@@ -3432,7 +3740,8 @@ Game.Launch=function()
 						
 			var age=Date.now()-Game.lumpT;
 			str+='<div class="line"></div>';
-			if (age<Game.lumpMatureAge) str+='This sugar lump is still growing and will take <b>'+Game.sayTime(((Game.lumpMatureAge-age)/1000+1)*Game.fps,-1)+'</b> to reach maturity.';
+			if (age<0) str+='This sugar lump has been exposed to time travel shenanigans and will take an excruciating <b>'+Game.sayTime(((Game.lumpMatureAge-age)/1000+1)*Game.fps,-1)+'</b> to reach maturity.';
+			else if (age<Game.lumpMatureAge) str+='This sugar lump is still growing and will take <b>'+Game.sayTime(((Game.lumpMatureAge-age)/1000+1)*Game.fps,-1)+'</b> to reach maturity.';
 			else if (age<Game.lumpRipeAge) str+='This sugar lump is mature and will be ripe in <b>'+Game.sayTime(((Game.lumpRipeAge-age)/1000+1)*Game.fps,-1)+'</b>.<br>You may <b>click it to harvest it now</b>, but there is a <b>50% chance you won\'t get anything</b>.';
 			else if (age<Game.lumpOverripeAge) str+='<b>This sugar lump is ripe! Click it to harvest it.</b><br>If you do nothing, it will auto-harvest in <b>'+Game.sayTime(((Game.lumpOverripeAge-age)/1000+1)*Game.fps,-1)+'</b>.';
 			
@@ -3471,7 +3780,8 @@ Game.Launch=function()
 				else if (godLvl==2) Game.lumpRipeAge-=(hour/3)*2;
 				else if (godLvl==3) Game.lumpRipeAge-=(hour/3);
 			}
-			if (Game.hasAura('Dragon\'s Curve')) {Game.lumpMatureAge/=1.05;Game.lumpRipeAge/=1.05;}
+			//if (Game.hasAura('Dragon\'s Curve')) {Game.lumpMatureAge/=1.05;Game.lumpRipeAge/=1.05;}
+			Game.lumpMatureAge/=1+Game.auraMult('Dragon\'s Curve')*0.05;Game.lumpRipeAge/=1+Game.auraMult('Dragon\'s Curve')*0.05;
 			Game.lumpOverripeAge=Game.lumpRipeAge+hour;
 			if (Game.Has('Glucose-charged air')) {Game.lumpMatureAge/=2000;Game.lumpRipeAge/=2000;Game.lumpOverripeAge/=2000;}
 		}
@@ -3545,7 +3855,7 @@ Game.Launch=function()
 			else if (Game.lumpCurrentType==4)
 			{
 				total*=choose([1,2,3]);
-				Game.lumpRefill=Date.now()-Game.getLumpRefillMax();
+				Game.lumpRefill=0;//Date.now()-Game.getLumpRefillMax();
 				if (Game.prefs.popups) Game.Popup('Sugar lump cooldowns cleared!');
 				else Game.Notify('Sugar lump cooldowns cleared!','',[29,27]);
 			}
@@ -3570,7 +3880,9 @@ Game.Launch=function()
 			Math.seedrandom(Game.seed+'/'+Game.lumpT);
 			var types=[0];
 			var loop=1;
-			if (Game.hasAura('Dragon\'s Curve')) loop=2;
+			//if (Game.hasAura('Dragon\'s Curve')) loop=2;
+			loop+=Game.auraMult('Dragon\'s Curve');
+			loop=randomFloor(loop);
 			for (var i=0;i<loop;i++)
 			{
 				if (Math.random()<(Game.Has('Sucralosia Inutilis')?0.15:0.1)) types.push(1);//bifurcated
@@ -3590,15 +3902,15 @@ Game.Launch=function()
 		
 		Game.getLumpRefillMax=function()
 		{
-			return 1000*60*15;//15 minutes
+			return Game.fps*60*15;//1000*60*15;//15 minutes
 		}
 		Game.getLumpRefillRemaining=function()
 		{
-			return Game.getLumpRefillMax()-(Date.now()-Game.lumpRefill);
+			return Game.lumpRefill;//Game.getLumpRefillMax()-(Date.now()-Game.lumpRefill);
 		}
 		Game.canRefillLump=function()
 		{
-			return ((Date.now()-Game.lumpRefill)>=Game.getLumpRefillMax());
+			return Game.lumpRefill<=0;//((Date.now()-Game.lumpRefill)>=Game.getLumpRefillMax());
 		}
 		Game.refillLump=function(n,func)
 		{
@@ -3606,7 +3918,7 @@ Game.Launch=function()
 			{
 				Game.spendLump(n,'refill',function()
 				{
-					if (!Game.sesame) Game.lumpRefill=Date.now();
+					if (!Game.sesame) Game.lumpRefill=Game.getLumpRefillMax();//Date.now();
 					func();
 				})();
 			}
@@ -3635,12 +3947,14 @@ Game.Launch=function()
 		
 		Game.doLumps=function()
 		{
+			if (Game.lumpRefill>0) Game.lumpRefill--;
+			
 			if (!Game.canLumps()) {Game.removeClass('lumpsOn');return;}
 			if (Game.lumpsTotal==-1)
 			{
 				//first time !
 				if (Game.ascensionMode!=1) Game.addClass('lumpsOn');
-				Game.lumpT-Date.now();
+				Game.lumpT=Date.now();
 				Game.lumpsTotal=0;
 				Game.lumps=0;
 				Game.computeLumpType();
@@ -3682,12 +3996,13 @@ Game.Launch=function()
 			}
 			var icon=[23+Math.min(phase,5),row];
 			var icon2=[23+phase2,row2];
+			if (age<0){icon=[17,5];icon2=[17,5];}
 			var opacity=Math.min(6,(age/Game.lumpOverripeAge)*7)%1;
 			if (phase>=6) {opacity=1;}
 			l('lumpsIcon').style.backgroundPosition=(-icon[0]*48)+'px '+(-icon[1]*48)+'px';
 			l('lumpsIcon2').style.backgroundPosition=(-icon2[0]*48)+'px '+(-icon2[1]*48)+'px';
 			l('lumpsIcon2').style.opacity=opacity;
-			l('lumpsAmount').innerHTML=Beautify(Game.lumps);
+			l('lumpsAmount').textContent=Beautify(Game.lumps);
 		}
 		
 		/*=====================================================================================
@@ -3713,14 +4028,16 @@ Game.Launch=function()
 		{
 			var add=0;
 			if (Game.Has('Thousand fingers')) add+=		0.1;
-			if (Game.Has('Million fingers')) add+=		0.5;
-			if (Game.Has('Billion fingers')) add+=		5;
-			if (Game.Has('Trillion fingers')) add+=		50;
-			if (Game.Has('Quadrillion fingers')) add+=	500;
-			if (Game.Has('Quintillion fingers')) add+=	5000;
-			if (Game.Has('Sextillion fingers')) add+=	50000;
-			if (Game.Has('Septillion fingers')) add+=	500000;
-			if (Game.Has('Octillion fingers')) add+=	5000000;
+			if (Game.Has('Million fingers')) add*=		5;
+			if (Game.Has('Billion fingers')) add*=		10;
+			if (Game.Has('Trillion fingers')) add*=		20;
+			if (Game.Has('Quadrillion fingers')) add*=	20;
+			if (Game.Has('Quintillion fingers')) add*=	20;
+			if (Game.Has('Sextillion fingers')) add*=	20;
+			if (Game.Has('Septillion fingers')) add*=	20;
+			if (Game.Has('Octillion fingers')) add*=	20;
+			if (Game.Has('Nonillion fingers')) add*=	20;
+			
 			var num=0;
 			for (var i in Game.Objects) {num+=Game.Objects[i].amount;}
 			num-=Game.Objects['Cursor'].amount;
@@ -3737,13 +4054,21 @@ Game.Launch=function()
 			if (Game.Has('Armythril mouse')) add+=Game.cookiesPs*0.01;
 			if (Game.Has('Technobsidian mouse')) add+=Game.cookiesPs*0.01;
 			if (Game.Has('Plasmarble mouse')) add+=Game.cookiesPs*0.01;
+			if (Game.Has('Miraculite mouse')) add+=Game.cookiesPs*0.01;
+			
+			if (Game.Has('Fortune #104')) add+=Game.cookiesPs*0.01;
 			var mult=1;
 			
-			for (var i in Game.customMouseCps) {mult+=Game.customMouseCps[i]();}
 			
 			if (Game.Has('Santa\'s helpers')) mult*=1.1;
 			if (Game.Has('Cookie egg')) mult*=1.1;
 			if (Game.Has('Halo gloves')) mult*=1.1;
+			if (Game.Has('Dragon claw')) mult*=1.03;
+			
+			if (Game.Has('Aura gloves'))
+			{
+				mult*=1+0.05*Math.min(Game.Objects['Cursor'].level,Game.Has('Luminous gloves')?20:10);
+			}
 			
 			mult*=Game.eff('click');
 			
@@ -3760,11 +4085,12 @@ Game.Launch=function()
 				if (typeof Game.buffs[i].multClick != 'undefined') mult*=Game.buffs[i].multClick;
 			}
 			
-			if (Game.hasAura('Dragon Cursor')) mult*=1.05;
-			
-			for (var i in Game.customMouseCpsMult) {mult*=Game.customMouseCpsMult[i]();}
+			//if (Game.hasAura('Dragon Cursor')) mult*=1.05;
+			mult*=1+Game.auraMult('Dragon Cursor')*0.05;
 			
 			var out=mult*Game.ComputeCps(1,Game.Has('Reinforced index finger')+Game.Has('Carpal tunnel prevention cream')+Game.Has('Ambidextrous'),add);
+			
+			out=Game.runModHookOnValue('cookiesPerClick',out);
 			
 			if (Game.hasBuff('Cursed finger')) out=Game.buffs['Cursed finger'].power;
 			return out;
@@ -3772,6 +4098,7 @@ Game.Launch=function()
 		Game.computedMouseCps=1;
 		Game.globalCpsMult=1;
 		Game.unbuffedCps=0;
+		Game.buildingCps=0;
 		Game.lastClick=0;
 		Game.CanClick=1;
 		Game.autoclickerDetected=0;
@@ -3791,8 +4118,7 @@ Game.Launch=function()
 		{
 			var now=Date.now();
 			if (e) e.preventDefault();
-			if (Game.OnAscend || Game.AscendTimer>0) {}
-			else if (now-Game.lastClick<1000/250) {}
+			if (Game.OnAscend || Game.AscendTimer>0 || Game.T<3 || now-Game.lastClick<1000/250) {}
 			else
 			{
 				if (now-Game.lastClick<1000/15)
@@ -3811,8 +4137,8 @@ Game.Launch=function()
 				}
 				if (Game.prefs.numbers) Game.particleAdd(Game.mouseX+Math.random()*8-4,Game.mouseY-8+Math.random()*8-4,0,-2,1,4,2,'','+'+Beautify(amount,1));
 				
-				for (var i in Game.customCookieClicks) {Game.customCookieClicks[i]();}
-			
+				Game.runModHook('click');
+				
 				Game.playCookieClickSound();
 				Game.cookieClicks++;
 			}
@@ -3857,6 +4183,7 @@ Game.Launch=function()
 			Game.lastActivity=Game.time;
 		}
 		var bigCookie=l('bigCookie');
+		bigCookie.setAttribute('alt','Big clickable cookie');
 		Game.Click=0;
 		Game.lastClickedEl=0;
 		Game.clickFrom=0;
@@ -3958,16 +4285,14 @@ Game.Launch=function()
 			
 			if (Game.Has('Heralds') && Game.ascensionMode!=1) mult*=1+0.01*Game.heralds;
 			
-			var cookieMult=0;
 			for (var i in Game.cookieUpgrades)
 			{
 				var me=Game.cookieUpgrades[i];
 				if (Game.Has(me.name))
 				{
-					mult*=(1+(typeof(me.power)=='function'?me.power(me):me.power)*0.01);
+					mult*=(1+(typeof(me.power)==='function'?me.power(me):me.power)*0.01);
 				}
 			}
-			mult*=(1+0.01*cookieMult);
 			
 			if (Game.Has('Specialized chocolate chips')) mult*=1.01;
 			if (Game.Has('Designer cocoa beans')) mult*=1.02;
@@ -3980,6 +4305,11 @@ Game.Launch=function()
 			if (Game.Has('A lump of coal')) mult*=1.01;
 			if (Game.Has('An itchy sweater')) mult*=1.01;
 			if (Game.Has('Santa\'s dominion')) mult*=1.2;
+			
+			if (Game.Has('Fortune #100')) mult*=1.01;
+			if (Game.Has('Fortune #101')) mult*=1.07;
+			
+			if (Game.Has('Dragon scale')) mult*=1.03;
 			
 			var buildMult=1;
 			if (Game.hasGod)
@@ -4012,24 +4342,12 @@ Game.Launch=function()
 			
 			if (Game.Has('Santa\'s legacy')) mult*=1+(Game.santaLevel+1)*0.03;
 			
-			for (var i in Game.Objects)
-			{
-				var me=Game.Objects[i];
-				me.storedCps=(typeof(me.cps)=='function'?me.cps(me):me.cps);
-				if (Game.ascensionMode!=1) me.storedCps*=(1+me.level*0.01)*buildMult;
-				me.storedTotalCps=me.amount*me.storedCps;
-				Game.cookiesPs+=me.storedTotalCps;
-				Game.cookiesPsByType[me.name]=me.storedTotalCps;
-			}
-			
-			if (Game.Has('"egg"')) {Game.cookiesPs+=9;Game.cookiesPsByType['"egg"']=9;}//"egg"
-			
-			for (var i in Game.customCps) {mult*=Game.customCps[i]();}
 			
 			Game.milkProgress=Game.AchievementsOwned/25;
 			var milkMult=1;
 			if (Game.Has('Santa\'s milk and cookies')) milkMult*=1.05;
-			if (Game.hasAura('Breath of Milk')) milkMult*=1.05;
+			//if (Game.hasAura('Breath of Milk')) milkMult*=1.05;
+			milkMult*=1+Game.auraMult('Breath of Milk')*0.05;
 			if (Game.hasGod)
 			{
 				var godLvl=Game.hasGod('mother');
@@ -4053,9 +4371,27 @@ Game.Launch=function()
 			if (Game.Has('Kitten assistants to the regional manager')) catMult*=(1+Game.milkProgress*0.175*milkMult);
 			if (Game.Has('Kitten marketeers')) catMult*=(1+Game.milkProgress*0.15*milkMult);
 			if (Game.Has('Kitten analysts')) catMult*=(1+Game.milkProgress*0.125*milkMult);
+			if (Game.Has('Kitten executives')) catMult*=(1+Game.milkProgress*0.115*milkMult);
 			if (Game.Has('Kitten angels')) catMult*=(1+Game.milkProgress*0.1*milkMult);
+			if (Game.Has('Fortune #103')) catMult*=(1+Game.milkProgress*0.05*milkMult);
 			
 			Game.cookiesMultByType['kittens']=catMult;
+			
+			for (var i in Game.Objects)
+			{
+				var me=Game.Objects[i];
+				me.storedCps=me.cps(me);
+				if (Game.ascensionMode!=1) me.storedCps*=(1+me.level*0.01)*buildMult;
+				if (me.id==1 && Game.Has('Milkhelp&reg; lactose intolerance relief tablets')) me.storedCps*=1+0.05*Game.milkProgress*milkMult;//this used to be "me.storedCps*=1+0.1*Math.pow(catMult-1,0.5)" which was. hmm
+				me.storedTotalCps=me.amount*me.storedCps;
+				Game.cookiesPs+=me.storedTotalCps;
+				Game.cookiesPsByType[me.name]=me.storedTotalCps;
+			}
+			//cps from buildings only
+			Game.buildingCps=Game.cookiesPs;
+			
+			if (Game.Has('"egg"')) {Game.cookiesPs+=9;Game.cookiesPsByType['"egg"']=9;}//"egg"
+			
 			mult*=catMult;
 			
 			var eggMult=1;
@@ -4084,24 +4420,20 @@ Game.Launch=function()
 			
 			if (Game.Has('Sugar baking')) mult*=(1+Math.min(100,Game.lumps)*0.01);
 			
-			if (Game.hasAura('Radiant Appetite')) mult*=2;
-			
-			if (Game.hasAura('Dragon\'s Fortune'))
-			{
-				var n=Game.shimmerTypes['golden'].n;
-				for (var i=0;i<n;i++){mult*=2.23;}
-				//old behavior
-				/*var buffs=0;
-				for (var i in Game.buffs)
-				{buffs++;}
-				mult*=1+(0.07)*buffs;*/
-			}
+			//if (Game.hasAura('Radiant Appetite')) mult*=2;
+			mult*=1+Game.auraMult('Radiant Appetite');
 			
 			var rawCookiesPs=Game.cookiesPs*mult;
 			for (var i in Game.CpsAchievements)
 			{
 				if (rawCookiesPs>=Game.CpsAchievements[i].threshold) Game.Win(Game.CpsAchievements[i].name);
 			}
+			Game.cookiesPsRaw=rawCookiesPs;
+			Game.cookiesPsRawHighest=Math.max(Game.cookiesPsRawHighest,rawCookiesPs);
+			
+			var n=Game.shimmerTypes['golden'].n;
+			var auraMult=Game.auraMult('Dragon\'s Fortune');
+			for (var i=0;i<n;i++){mult*=1+auraMult*1.23;}
 			
 			name=Game.bakeryName.toLowerCase();
 			if (name=='orteil') mult*=0.99;
@@ -4142,7 +4474,8 @@ Game.Launch=function()
 			if (Game.Has('Magic shenanigans')) mult*=1000;
 			if (Game.Has('Occult obstruction')) mult*=0;
 			
-			for (var i in Game.customCpsMult) {mult*=Game.customCpsMult[i]();}
+			
+			Game.cookiesPs=Game.runModHookOnValue('cps',Game.cookiesPs);
 			
 			
 			//cps without golden cookie effects
@@ -4150,7 +4483,7 @@ Game.Launch=function()
 			
 			for (var i in Game.buffs)
 			{
-				if (typeof Game.buffs[i].multCpS != 'undefined') mult*=Game.buffs[i].multCpS;
+				if (typeof Game.buffs[i].multCpS!=='undefined') mult*=Game.buffs[i].multCpS;
 			}
 			
 			Game.globalCpsMult=mult;
@@ -4169,8 +4502,10 @@ Game.Launch=function()
 		{
 			var rate=1;
 			if (Game.Has('Green yeast digestives')) rate*=1.03;
+			if (Game.Has('Dragon teddy bear')) rate*=1.03;
 			rate*=Game.eff('itemDrops');
-			if (Game.hasAura('Mind Over Matter')) rate*=1.25;
+			//if (Game.hasAura('Mind Over Matter')) rate*=1.25;
+			rate*=1+Game.auraMult('Mind Over Matter')*0.25;
 			if (Game.Has('Santa\'s bottomless bag')) rate*=1.1;
 			if (Game.Has('Cosmic beginner\'s luck') && !Game.Has('Heavenly chip secret')) rate*=5;
 			return rate;
@@ -4351,6 +4686,7 @@ Game.Launch=function()
 					me.l.style.backgroundPosition=(-picX*96)+'px '+(-picY*96)+'px';
 					me.l.style.opacity='0';
 					me.l.style.display='block';
+					me.l.setAttribute('alt',me.wrath?'Wrath cookie':'Golden cookie');
 					
 					me.life=1;//the cookie's current progression through its lifespan (in frames)
 					me.dur=13;//duration; the cookie's lifespan in seconds before it despawns
@@ -4394,6 +4730,7 @@ Game.Launch=function()
 						if (Game.goldenClicks>=77) Game.Win('Fortune');
 						if (Game.goldenClicks>=777) Game.Win('Leprechaun');
 						if (Game.goldenClicks>=7777) Game.Win('Black cat\'s paw');
+						if (Game.goldenClicks>=27777) Game.Win('Seven horseshoes');
 						
 						if (Game.goldenClicks>=7) Game.Unlock('Lucky day');
 						if (Game.goldenClicks>=27) Game.Unlock('Serendipity');
@@ -4425,8 +4762,10 @@ Game.Launch=function()
 					
 					if ((me.wrath==0 && Math.random()<0.15) || Math.random()<0.05)
 					{
-						if (Game.hasAura('Reaper of Fields')) list.push('dragon harvest');
-						if (Game.hasAura('Dragonflight')) list.push('dragonflight');
+						//if (Game.hasAura('Reaper of Fields')) list.push('dragon harvest');
+						if (Math.random()<Game.auraMult('Reaper of Fields')) list.push('dragon harvest');
+						//if (Game.hasAura('Dragonflight')) list.push('dragonflight');
+						if (Math.random()<Game.auraMult('Dragonflight')) list.push('dragonflight');
 					}
 					
 					if (this.last!='' && Math.random()<0.8 && list.indexOf(this.last)!=-1) list.splice(list.indexOf(this.last),1);//80% chance to force a different one
@@ -4448,7 +4787,8 @@ Game.Launch=function()
 					if (Game.Has('Lucky number')) effectDurMod*=1.01;
 					if (Game.Has('Green yeast digestives')) effectDurMod*=1.01;
 					if (Game.Has('Lucky payout')) effectDurMod*=1.01;
-					if (Game.hasAura('Epoch Manipulator')) effectDurMod*=1.05;
+					//if (Game.hasAura('Epoch Manipulator')) effectDurMod*=1.05;
+					effectDurMod*=1+Game.auraMult('Epoch Manipulator')*0.05;
 					if (!me.wrath) effectDurMod*=Game.eff('goldenCookieEffDur');
 					else effectDurMod*=Game.eff('wrathCookieEffDur');
 					
@@ -4462,9 +4802,12 @@ Game.Launch=function()
 					
 					//effect multiplier (from lucky etc)
 					var mult=1;
-					if (me.wrath>0 && Game.hasAura('Unholy Dominion')) mult*=1.1;
-					else if (me.wrath==0 && Game.hasAura('Ancestral Metamorphosis')) mult*=1.1;
+					//if (me.wrath>0 && Game.hasAura('Unholy Dominion')) mult*=1.1;
+					//else if (me.wrath==0 && Game.hasAura('Ancestral Metamorphosis')) mult*=1.1;
+					if (me.wrath>0) mult*=1+Game.auraMult('Unholy Dominion')*0.1;
+					else if (me.wrath==0) mult*=1+Game.auraMult('Ancestral Metamorphosis')*0.1;
 					if (Game.Has('Green yeast digestives')) mult*=1.01;
+					if (Game.Has('Dragon fang')) mult*=1.03;
 					if (!me.wrath) mult*=Game.eff('goldenCookieGain');
 					else mult*=Game.eff('wrathCookieGain');
 					
@@ -4643,7 +4986,8 @@ Game.Launch=function()
 					if (Game.Has('Golden goose egg')) m*=0.95;
 					if (Game.Has('Heavenly luck')) m*=0.95;
 					if (Game.Has('Green yeast digestives')) m*=0.99;
-					if (Game.hasAura('Arcane Aura')) m*=0.95;
+					//if (Game.hasAura('Arcane Aura')) m*=0.95;
+					m*=1-Game.auraMult('Arcane Aura')*0.05;
 					if (Game.hasBuff('Sugar blessing')) m*=0.9;
 					if (Game.season=='easter' && Game.Has('Starspawn')) m*=0.98;
 					else if (Game.season=='halloween' && Game.Has('Starterror')) m*=0.98;
@@ -4713,6 +5057,7 @@ Game.Launch=function()
 					me.l.style.opacity='0';
 					//me.l.style.transform='rotate('+(Math.random()*60-30)+'deg) scale('+(Math.random()*1+0.25)+')';
 					me.l.style.display='block';
+					me.l.setAttribute('alt','Reindeer');
 					
 					me.life=1;//the reindeer's current progression through its lifespan (in frames)
 					me.dur=4;//duration; the cookie's lifespan in seconds before it despawns
@@ -4857,6 +5202,8 @@ Game.Launch=function()
 			'Prism':['Solar flare','Eclipse'],
 			'Chancemaker':['Winning streak','Dry spell'],
 			'Fractal engine':['Macrocosm','Microcosm'],
+			'Javascript console':['Refactoring','Antipattern'],
+			'Idleverse':['Cosmic nursery','Big crunch'],
 		};
 		
 		/*=====================================================================================
@@ -4865,14 +5212,15 @@ Game.Launch=function()
 		//generic particles (falling cookies etc)
 		//only displayed on left section
 		Game.particles=[];
-		for (var i=0;i<50;i++)
+		Game.particlesN=50;
+		for (var i=0;i<Game.particlesN;i++)
 		{
-			Game.particles[i]={x:0,y:0,xd:0,yd:0,w:64,h:64,z:0,size:1,dur:2,life:-1,r:0,pic:'smallCookies.png',picId:0};
+			Game.particles[i]={x:0,y:0,xd:0,yd:0,w:64,h:64,z:0,size:1,dur:2,life:-1,r:0,pic:'smallCookies.png',picId:0,picPos:[0,0]};
 		}
 		
 		Game.particlesUpdate=function()
 		{
-			for (var i in Game.particles)
+			for (var i=0;i<Game.particlesN;i++)
 			{
 				var me=Game.particles[i];
 				if (me.life!=-1)
@@ -4897,7 +5245,7 @@ Game.Launch=function()
 			{
 				var highest=0;
 				var highestI=0;
-				for (var i in Game.particles)
+				for (var i=0;i<Game.particlesN;i++)
 				{
 					if (Game.particles[i].life==-1) {highestI=i;break;}
 					if (Game.particles[i].life>highest)
@@ -4939,6 +5287,7 @@ Game.Launch=function()
 						pic='icons.png';
 					}
 				}
+				else if (pic!=='string'){me.picPos=pic;pic='icons.png';}
 				me.pic=pic||'smallCookies.png';
 				me.text=text||0;
 				return me;
@@ -4952,7 +5301,7 @@ Game.Launch=function()
 			ctx.font='20px Merriweather';
 			ctx.textAlign='center';
 			
-			for (var i in Game.particles)
+			for (var i=0;i<Game.particlesN;i++)
 			{
 				var me=Game.particles[i];
 				if (me.z==z)
@@ -5468,6 +5817,7 @@ Game.Launch=function()
 				Game.WriteButton('numbers','numbersButton','Numbers ON','Numbers OFF')+'<label>(numbers that pop up when clicking the cookie)</label><br>'+
 				Game.WriteButton('milk','milkButton','Milk ON','Milk OFF')+'<label>(only appears with enough achievements)</label><br>'+
 				Game.WriteButton('cursors','cursorsButton','Cursors ON','Cursors OFF')+'<label>(visual display of your cursors)</label><br>'+
+				Game.WriteButton('hacks','timeoutButton','Hacks ON','Hacks OFF',"Game.showPopup('bruh');")+'<label>(very cool hacks and stuff yes)</label><br>'+
 				Game.WriteButton('wobbly','wobblyButton','Wobbly cookie ON','Wobbly cookie OFF')+'<label>(your cookie will react when you click it)</label><br>'+
 				Game.WriteButton('cookiesound','cookiesoundButton','Alt cookie sound ON','Alt cookie sound OFF')+'<label>(how your cookie sounds when you click on it)</label><br>'+
 				Game.WriteButton('crates','cratesButton','Icon crates ON','Icon crates OFF')+'<label>(display boxes around upgrades and achievements in stats)</label><br>'+
@@ -5483,6 +5833,8 @@ Game.Launch=function()
 				Game.WriteButton('timeout','timeoutButton','Sleep mode timeout ON','Sleep mode timeout OFF')+'<label>(on slower computers, the game will put itself in sleep mode when it\'s inactive and starts to lag out; offline CpS production kicks in during sleep mode)</label><br>'+
 				'</div>'+
 				//'<div class="listing">'+Game.WriteButton('autosave','autosaveButton','Autosave ON','Autosave OFF')+'</div>'+
+				'<div class="listing"><a class="option" '+Game.clickStr+'="Game.CheckModData();PlaySound(\'snd/tick.mp3\');">Check mod data</a><label>(view and delete save data created by mods)</label></div>'+
+				
 				'<div style="padding-bottom:128px;"></div>'+
 				'</div>'
 				;
@@ -5500,6 +5852,7 @@ Game.Launch=function()
 			else if (Game.onMenu=='log')
 			{
 				str+=replaceAll('[bakeryName]',Game.bakeryName,Game.updateLog);
+				if (!Game.HasAchiev('Olden days')) str+='<div style="text-align:right;width:100%;"><div '+Game.clickStr+'="Game.SparkleAt(Game.mouseX,Game.mouseY);PlaySound(\'snd/tick.mp3\');PlaySound(\'snd/shimmerClick.mp3\');Game.Win(\'Olden days\');Game.UpdateMenu();" class="icon" style="display:inline-block;transform:scale(0.5);cursor:pointer;width:48px;height:48px;background-position:'+(-12*48)+'px '+(-3*48)+'px;"></div></div>';
 			}
 			else if (Game.onMenu=='stats')
 			{
@@ -5515,10 +5868,8 @@ Game.Launch=function()
 				var prestigeUpgradesOwned=0;
 				
 				var list=[];
-				for (var i in Game.Upgrades)//sort the upgrades
-				{
-					list.push(Game.Upgrades[i]);
-				}
+				//sort the upgrades
+				for (var i in Game.Upgrades){list.push(Game.Upgrades[i]);}//clone first
 				var sortMap=function(a,b)
 				{
 					if (a.order>b.order) return 1;
@@ -5602,7 +5953,7 @@ Game.Launch=function()
 						var milk=Game.Milks[i];
 						milkStr+='<div '+Game.getTooltip(
 						'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px;padding-bottom:96px;"><h3 style="margin:6px 32px 0px 32px;">'+milk.name+'</h3><div style="opacity:0.75;font-size:9px;">('+(i==0?'starter milk':('for '+Beautify(i*25)+' achievements'))+')</div><div class="line"></div><div style="width:100%;height:96px;position:absolute;left:0px;bottom:0px;background:url(img/'+milk.pic+'.png);"></div></div>'
-						,'top')+' style="background:url(img/icons.png) '+(-milk.icon[0]*48)+'px '+(-milk.icon[1]*48)+'px;margin:2px 0px;" class="trophy"></div>';
+						,'top')+' style="background:url(img/icons.png?v='+Game.version+') '+(-milk.icon[0]*48)+'px '+(-milk.icon[1]*48)+'px;margin:2px 0px;" class="trophy"></div>';
 					}
 				}
 				milkStr+='<div style="clear:both;"></div>';
@@ -5621,7 +5972,7 @@ Game.Launch=function()
 				}
 				var dragonStr='';
 				var frames=9;
-				var mainLevels=[0,4,8,21,22,23];
+				var mainLevels=[0,4,8,23,24,25];
 				if (Game.Has('A crumbly egg'))
 				{
 					for (var i=0;i<=mainLevels.length;i++)
@@ -5681,6 +6032,9 @@ Game.Launch=function()
 					'(multiplier : '+Beautify(Math.round(Game.globalCpsMult*100),1)+'%)'+
 					(Game.cpsSucked>0?' <span class="warning">(withered : '+Beautify(Math.round(Game.cpsSucked*100),1)+'%)</span>':'')+
 					'</small></div>'+
+				'<div class="listing"><b>Raw cookies per second :</b> '+Beautify(Game.cookiesPsRaw,1)+' <small>'+
+					'(highest this ascension : '+Beautify(Game.cookiesPsRawHighest,1)+')'+
+					'</small></div>'+
 				'<div class="listing"><b>Cookies per click :</b> '+Beautify(Game.computedMouseCps,1)+'</div>'+
 				'<div class="listing"><b>Cookie clicks :</b> '+Beautify(Game.cookieClicks)+'</div>'+
 				'<div class="listing"><b>Hand-made cookies :</b> '+Beautify(Game.handmadeCookies)+'</div>'+
@@ -5695,8 +6049,8 @@ Game.Launch=function()
 					(seasonStr!=''?' <small>('+seasonStr+' remaining)</small>':'')+
 				'</div>':'')+
 				(Game.season=='fools'?
-					'<div class="listing"><b>Money made from selling cookies :</b> $'+Beautify(Game.cookiesEarned*0.08,2)+'</div>'+
-					(Game.Objects['Portal'].amount>0?'<div class="listing"><b>TV show seasons produced :</b> '+Beautify(Math.floor((timeInSeconds/60/60)*(Game.Objects['Portal'].amount*0.13)+1))+'</div>':'')
+					'<div class="listing"><b>Money made from selling cookies :</b> '+Beautify(Game.cookiesEarned*0.08,2)+' cookie dollars</div>'+
+					(Game.Objects['Portal'].highest>0?'<div class="listing"><b>TV show seasons produced :</b> '+Beautify(Math.floor((timeInSeconds/60/60)*(Game.Objects['Portal'].highest*0.13)+1))+'</div>':'')
 				:'')+
 				(researchStr!=''?'<div class="listing"><b>Research :</b> '+researchStr+' remaining</div>':'')+
 				(wrathStr!=''?'<div class="listing"><b>Grandmatriarchs status :</b> '+wrathStr+'</div>':'')+
@@ -5776,14 +6130,16 @@ Game.Launch=function()
 		=======================================================================================*/
 		Game.Ticker='';
 		Game.TickerAge=0;
+		Game.TickerEffect=0;
 		Game.TickerN=0;
 		Game.TickerClicks=0;
 		Game.UpdateTicker=function()
 		{
 			Game.TickerAge--;
-			if (Game.TickerAge<=0 || Game.Ticker=='') Game.getNewTicker();
+			if (Game.TickerAge<=0) Game.getNewTicker();
+			else if (Game.Ticker=='') Game.getNewTicker(true);
 		}
-		Game.getNewTicker=function()
+		Game.getNewTicker=function(manual)//note : "manual" is true if the ticker was clicked, but may also be true on startup etc
 		{
 			var list=[];
 			
@@ -5943,6 +6299,22 @@ Game.Launch=function()
 					'News : polls find idea of cookies made of cookies "acceptable" - "at least we finally know what\'s in them", says interviewed citizen.',
 					]));
 					
+					if (Game.Objects['Javascript console'].amount>0) list.push(choose([
+					'News : strange fad has parents giving their newborns names such as Emma.js or Liam.js. At least one Baby.js reported.',
+					'News : coding is hip! More and more teenagers turn to technical fields like programming, ensuring a future robot apocalypse and the doom of all mankind.',
+					'News : developers unsure what to call their new javascript libraries as all combinations of any 3 dictionary words have already been taken.',
+					'News : nation holds breath as nested ifs about to hatch.',
+					'News : clueless copywriter forgets to escape a quote, ends news line prematurely; last words reported to be "Huh, why isn',
+					]));
+					
+					if (Game.Objects['Idleverse'].amount>0) list.push(choose([
+					'News : is another you living out their dreams in an alternate universe? Probably, you lazy bum!',
+					'News : public recoils at the notion of a cosmos made of infinite idle games. "I kinda hoped there\'d be more to it", says distraught citizen.',
+					'News : with an infinity of parallel universes, people turn to reassuring alternate dimensions, which only number "in the high 50s".',
+					'News : "I find solace in the knowledge that at least some of my alternate selves are probably doing fine out there", says citizen\'s last remaining exemplar in the multiverse.',
+					'News : comic book writers point to actual multiverse in defense of dubious plot points. "See? I told you it wasn\'t \'hackneyed and contrived\'!"'
+					]));
+					
 					if (Game.season=='halloween' && Game.cookiesEarned>=1000) list.push(choose([
 					'News : strange twisting creatures amass around cookie factories, nibble at assembly lines.',
 					'News : ominous wrinkly monsters take massive bites out of cookie production; "this can\'t be hygienic", worries worker.',
@@ -5979,13 +6351,13 @@ Game.Launch=function()
 					'News : eggs have begun to materialize in the most unexpected places; "no place is safe", warn experts.',
 					'News : packs of rampaging rabbits cause billions in property damage; new strain of myxomatosis being developed.',
 					'News : egg-laying rabbits "not quite from this dimension", warns biologist; advises against petting, feeding, or cooking the creatures.',
-					'News : mysterious rabbits found to be egg-layers, but warm-blooded, hinting at possible platypus ancestry.'
+					'News : mysterious rabbits found to be egg-layers, but mammalian, hinting at possible platypus ancestry.'
 					]));
 				}
 				
 				if (Math.random()<0.05)
 				{
-					if (Game.HasAchiev('Base 10')) list.push('News : cookie manufacturer completely forgoes common sense, lets OCD drive building decisions!');//somehow I got flak for this one
+					if (Game.HasAchiev('Base 10')) list.push('News : cookie manufacturer completely forgoes common sense, lets strange obsession with round numbers drive building decisions!');
 					if (Game.HasAchiev('From scratch')) list.push('News : follow the tear-jerking, riches-to-rags story about a local cookie manufacturer who decided to give it all up!');
 					if (Game.HasAchiev('A world filled with cookies')) list.push('News : known universe now jammed with cookies! No vacancies!');
 					if (Game.HasAchiev('Last Chance to See')) list.push('News : incredibly rare albino wrinkler on the brink of extinction poached by cookie-crazed pastry magnate!');
@@ -6004,7 +6376,10 @@ Game.Launch=function()
 					if (Game.Has('Kitten assistants to the regional manager')) list.push('News : strange kittens with peculiar opinions on martial arts spotted loitering on local beet farms!');
 					if (Game.Has('Kitten marketeers')) list.push('News : nonsensical billboards crop up all over countryside, trying to sell people the cookies they already get for free!');
 					if (Game.Has('Kitten analysts')) list.push('News : are your spending habits sensible? For a hefty fee, these analysts will tell you!');
+					if (Game.Has('Kitten executives')) list.push('News : kittens strutting around in hot little business suits shouting cut-throat orders at their assistants, possibly the cutest thing this reporter has ever seen!');
 					if (Game.Has('Kitten angels')) list.push('News : "Try to ignore any ghostly felines that may be purring inside your ears," warn scientists. "They\'ll just lure you into making poor life choices."');
+					if (Game.Has('Kitten wages')) list.push('News : kittens break glass ceiling! Do they have any idea how expensive those are!');
+					if (Game.HasAchiev('Jellicles')) list.push('News : local kittens involved in misguided musical production, leave audience perturbed and unnerved.');
 				}
 				
 				if (Game.HasAchiev('Dude, sweet') && Math.random()<0.2) list.push(choose([
@@ -6038,7 +6413,7 @@ Game.Launch=function()
 					'cookies unexpectedly popular among '+choose(animals)+'!',
 					'unsightly lumps found on '+choose(animals)+' near cookie facility; "they\'ve pretty much always looked like that", say biologists.',
 					'new species of '+choose(animals)+' discovered in distant country; "yup, tastes like cookies", says biologist.',
-					'cookies go well with '+choose([choose(['roasted','toasted','boiled','sauteed','minced'])+' '+choose(animals),choose(animals)+' '+choose(['sushi','soup','carpaccio','steak','nuggets'])])+', says controversial chef.',
+					'cookies go well with '+choose([choose(['roasted','toasted','boiled','sauteed','minced'])+' '+choose(animals),choose(['sushi','soup','carpaccio','steak','nuggets'])+' made from '+choose(animals)])+', says controversial chef.',
 					'"do your cookies contain '+choose(animals)+'?", asks PSA warning against counterfeit cookies.',
 					'doctors recommend twice-daily consumption of fresh cookies.',
 					'doctors warn against chocolate chip-snorting teen fad.',
@@ -6076,6 +6451,11 @@ Game.Launch=function()
 					'News : obesity epidemic strikes nation; experts blame '+choose(['twerking','that darn rap music','video-games','lack of cookies','mysterious ghostly entities','aliens','parents','schools','comic-books','cookie-snorting fad'])+'.',
 					'News : cookie shortage strikes town, people forced to eat cupcakes; "just not the same", concedes mayor.',
 					'News : "you gotta admit, all this cookie stuff is a bit ominous", says confused idiot.',
+					//'News : scientists advise getting used to cookies suffusing every aspect of life; "this is the new normal", expert says.',
+					//'News : doctors advise against wearing face masks when going outside. "You never know when you might need a cookie... a mask would just get in the way."',//these were written back when covid hadn't really done much damage yet but they just feel in poor taste now
+					'News : is there life on Mars? Various chocolate bar manufacturers currently under investigation for bacterial contaminants.',
+					'News : "so I guess that\'s a thing now", scientist comments on cookie particles now present in virtually all steel manufactured since cookie production ramped up worldwide.',
+					'News : trace amounts of cookie particles detected in most living creatures, some of which adapting them as part of new and exotic metabolic processes.',
 				]),
 				choose([
 					'News : movie cancelled from lack of actors; "everybody\'s at home eating cookies", laments director.',
@@ -6100,7 +6480,7 @@ Game.Launch=function()
 					'News : "'+Game.bakeryName+'" set to be this year\'s most popular baby name.',
 					'News : new popularity survey says '+Game.bakeryName+'\'s the word when it comes to cookies.',
 					'News : major city being renamed '+Game.bakeryName+'ville after world-famous cookie manufacturer.',
-					'News : '+choose(['street','school','nursing home','stadium','new fast food chain','new planet','new disease','flesh-eating virus','deadly bacteria','new species of '+choose(animals),'new law','baby','programming language'])+' to be named after '+Game.bakeryName+', the world-famous cookie manufacturer.',
+					'News : '+choose(['street','school','nursing home','stadium','new fast food chain','new planet','new disease','flesh-eating bacteria','deadly virus','new species of '+choose(animals),'new law','baby','programming language'])+' to be named after '+Game.bakeryName+', the world-famous cookie manufacturer.',
 					'News : don\'t miss tonight\'s biopic on '+Game.bakeryName+'\'s irresistible rise to success!',
 					'News : don\'t miss tonight\'s interview of '+Game.bakeryName+' by '+choose(['Bloprah','Blavid Bletterman','Blimmy Blimmel','Blellen Blegeneres','Blimmy Blallon','Blonan Blo\'Brien','Blay Bleno','Blon Blewart','Bleven Blolbert','Lord Toxikhron of dimension 7-B19',Game.bakeryName+'\'s own evil clone'])+'!',
 					'News : people all over the internet still scratching their heads over nonsensical reference : "Okay, but why an egg?"',
@@ -6109,7 +6489,7 @@ Game.Launch=function()
 					'News : cookie emoji most popular among teenagers, far ahead of "judgemental OK hand sign" and "shifty-looking dark moon", says study.',
 				]),
 				choose([
-					'News : births of suspiciously bald babies on the rise; reptilian overlords deny involvement.',
+					'News : births of suspiciously bald babies on the rise; ancient alien cabal denies involvement.',
 					'News : "at this point, cookies permeate the economy", says economist. "If we start eating anything else, we\'re all dead."',
 					'News : pun in headline infuriates town, causes riot. 21 wounded, 5 dead; mayor still missing.',
 					'Nws : ky btwn W and R brokn, plas snd nw typwritr ASAP.',
@@ -6273,6 +6653,18 @@ Game.Launch=function()
 					'New pro-cookie law passes without a hitch thanks to your firm grasp of the political ecosystem!',
 					'Your appointed senators are overturning cookie bans left and right!'
 					]));
+					
+					if (Game.Objects['Javascript console'].amount>0) list.push(choose([
+					'Cookies are now one of the defining aspects of mankind! Congratulations!',
+					'Time travelers report that this era will later come to be known, thanks to you, as the cookie millennium!',
+					'Cookies now deeply rooted in human culture, likely puzzling future historians!'
+					]));
+					
+					if (Game.Objects['Idleverse'].amount>0) list.push(choose([
+					'Public aghast as all remaining aspects of their lives overtaken by universal cookie industry!',
+					'Every single product currently sold in the observable universe can be traced back to your company! And that\'s a good thing.',
+					'Antitrust laws let out a helpless whimper before being engulfed by your sprawling empire!'
+					]));
 				}
 				
 				if (Game.cookiesEarned<5) list.push('Such a grand day to begin a new business.');
@@ -6289,10 +6681,43 @@ Game.Launch=function()
 				else if (Game.cookiesEarned<10100000000) list.push('You look back at your career. It\'s been a fascinating journey, building your baking empire from the ground up.');//only show this for 100 millions
 			}
 			
-			for (var i in Game.customTickers)
+			for (var i=0;i<Game.modHooks['ticker'].length;i++)
 			{
-				var arr=Game.customTickers[i]();
-				for (var ii in arr) list.push(arr[ii]);
+				var arr=Game.modHooks['ticker'][i]();
+				if (arr) list=list.concat(arr);
+			}
+			
+			Game.TickerEffect=0;
+			
+			if (!manual && Game.T>Game.fps*10 && Game.Has('Fortune cookies') && Math.random()<(Game.HasAchiev('O Fortuna')?0.04:0.02))
+			{
+				var fortunes=[];
+				for (var i in Game.Tiers['fortune'].upgrades)
+				{
+					var it=Game.Tiers['fortune'].upgrades[i];
+					if (!Game.HasUnlocked(it.name)) fortunes.push(it);
+				}
+				
+				if (!Game.fortuneGC) fortunes.push('fortuneGC');
+				if (!Game.fortuneCPS) fortunes.push('fortuneCPS');
+				
+				if (fortunes.length>0)
+				{
+					list=[];
+					var me=choose(fortunes);
+					Game.TickerEffect={type:'fortune',sub:me};
+					Math.seedrandom(Game.seed+'-fortune');
+					if (me=='fortuneGC') me='Today is your lucky day!';/*<br>Click here for a golden cookie.';*/
+					else if (me=='fortuneCPS') me='Your lucky numbers are : '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)/*+'<br>Click here to gain one hour of your CpS.'*/;
+					else
+					{
+						me=me.name.substring(me.name.indexOf('#'))+' : '+me.baseDesc.substring(me.baseDesc.indexOf('<q>')+3);
+						me=me.substring(0,me.length-4);
+					}
+					me='<span class="fortune"><div class="icon" style="vertical-align:middle;display:inline-block;background-position:'+(-29*48)+'px '+(-8*48)+'px;transform:scale(0.5);margin:-16px;position:relative;left:-4px;top:-2px;"></div>'+me+'</span>';
+					Math.seedrandom();
+					list=[me];
+				}
 			}
 			
 			Game.TickerAge=Game.fps*10;
@@ -6319,7 +6744,38 @@ Game.Launch=function()
 			void Game.tickerL.offsetWidth;
 			Game.tickerL.className='commentsText risingUp';
 		}
-		AddEvent(Game.tickerL,'click',function(event){Game.Ticker='';Game.TickerClicks++;if (Game.TickerClicks==50) {Game.Win('Tabloid addiction');}});
+		AddEvent(Game.tickerL,'click',function(event){
+			Game.Ticker='';
+			Game.TickerClicks++;
+			if (Game.TickerClicks==50) {Game.Win('Tabloid addiction');}
+			
+			if (Game.TickerEffect && Game.TickerEffect.type=='fortune')
+			{
+				PlaySound('snd/fortune.mp3',1);
+				Game.SparkleAt(Game.mouseX,Game.mouseY);
+				var effect=Game.TickerEffect.sub;
+				if (effect=='fortuneGC')
+				{
+					Game.Notify('Fortune!','A golden cookie has appeared.',[10,32]);
+					Game.fortuneGC=1;
+					var newShimmer=new Game.shimmer('golden',{noWrath:true});
+				}
+				else if (effect=='fortuneCPS')
+				{
+					Game.Notify('Fortune!','You gain <b>one hour</b> of your CpS (capped at double your bank).',[10,32]);
+					Game.fortuneCPS=1;
+					Game.Earn(Math.min(Game.cookiesPs*60*60,Game.cookies));
+				}
+				else
+				{
+					Game.Notify(effect.name,'You\'ve unlocked a new upgrade.',effect.icon);
+					effect.unlock();
+				}
+			}
+			
+			Game.TickerEffect=0;
+			
+		});
 		
 		Game.Log=[];
 		Game.AddToLog=function(what)
@@ -6341,7 +6797,7 @@ Game.Launch=function()
 		Game.buyBulkOld=Game.buyBulk;//used to undo changes from holding Shift or Ctrl
 		Game.buyBulkShortcut=0;//are we pressing Shift or Ctrl?
 		
-		Game.Objects=[];
+		Game.Objects={};
 		Game.ObjectsById=[];
 		Game.ObjectsN=0;
 		Game.BuildingsOwned=0;
@@ -6378,10 +6834,14 @@ Game.Launch=function()
 				var digits=Math.pow(10,(Math.ceil(Math.log(Math.ceil(this.baseCps))/Math.LN10)))/100;
 				this.baseCps=Math.round(this.baseCps/digits)*digits;
 				
-				this.basePrice=(this.n*1+9+(this.n<5?0:Math.pow(this.n-5,1.75)*5))*Math.pow(10,this.n);
+				this.basePrice=(this.n*1+9+(this.n<5?0:Math.pow(this.n-5,1.75)*5))*Math.pow(10,this.n)*(Math.max(1,this.n-14));
 				//this.basePrice=(this.n*2.5+7.5)*Math.pow(10,this.n);
 				var digits=Math.pow(10,(Math.ceil(Math.log(Math.ceil(this.basePrice))/Math.LN10)))/100;
 				this.basePrice=Math.round(this.basePrice/digits)*digits;
+				if (this.id>=16) this.basePrice*=10;
+				if (this.id>=17) this.basePrice*=10;
+				if (this.id>=18) this.basePrice*=10;
+				if (this.id>=19) this.basePrice*=10;
 				this.price=this.basePrice;
 				this.bulkPrice=this.price;
 			}
@@ -6402,9 +6862,11 @@ Game.Launch=function()
 			this.tieredUpgrades=[];
 			this.tieredAchievs=[];
 			this.synergies=[];
+			this.fortune=0;
 			
 			this.amount=0;
 			this.bought=0;
+			this.highest=0;
 			this.free=0;
 			
 			this.eachFrame=0;
@@ -6468,7 +6930,8 @@ Game.Launch=function()
 			this.getSellMultiplier=function()
 			{
 				var giveBack=0.25;
-				if (Game.hasAura('Earth Shatterer')) giveBack=0.5;
+				//if (Game.hasAura('Earth Shatterer')) giveBack=0.5;
+				giveBack*=1+Game.auraMult('Earth Shatterer');
 				return giveBack;
 			}
 			
@@ -6495,6 +6958,7 @@ Game.Launch=function()
 						if (this.buyFunction) this.buyFunction();
 						Game.recalculateGains=1;
 						if (this.amount==1 && this.id!=0) l('row'+this.id).classList.add('enabled');
+						this.highest=Math.max(this.highest,this.amount);
 						Game.BuildingsOwned++;
 						success=1;
 					}
@@ -6547,6 +7011,21 @@ Game.Launch=function()
 						else if (godLvl==3) Game.gainBuff('devastation',10,1+sold*0.0025);
 					}
 				}
+				if (success && Game.shimmerTypes['golden'].n<=0 && Game.auraMult('Dragon Orbs')>0)
+				{
+					var highestBuilding=0;
+					for (var i in Game.Objects) {if (Game.Objects[i].amount>0) highestBuilding=Game.Objects[i];}
+					if (highestBuilding==this && Math.random()<Game.auraMult('Dragon Orbs')*0.1)
+					{
+						var buffsN=0;
+						for (var ii in Game.buffs){buffsN++;}
+						if (buffsN==0)
+						{
+							new Game.shimmer('golden');
+							Game.Notify('Dragon Orbs!','Wish granted. Golden cookie spawned.',[33,25]);
+						}
+					}
+				}
 				if (success) {PlaySound('snd/sell'+choose([1,2,3,4])+'.mp3',0.75);this.refresh();}
 				//if (moni>0) Game.Notify(this.name,'Sold <b>'+sold+'</b> for '+Beautify(moni)+' cookies','',2);
 			}
@@ -6591,6 +7070,7 @@ Game.Launch=function()
 						this.price=this.getPrice();
 						Game.recalculateGains=1;
 						if (this.amount==1 && this.id!=0) l('row'+this.id).classList.add('enabled');
+						this.highest=Math.max(this.highest,this.amount);
 						Game.BuildingsOwned++;
 					}
 				}
@@ -6601,7 +7081,9 @@ Game.Launch=function()
 				this.amount+=amount;
 				this.bought+=amount;
 				this.free+=amount;
+				this.highest=Math.max(this.highest,this.amount);
 				Game.BuildingsOwned+=amount;
+						this.highest=Math.max(this.highest,this.amount);
 				this.refresh();
 			}
 			this.getFreeRanks=function(amount)//this building's price behaves as if you had X less of it
@@ -6801,15 +7283,15 @@ Game.Launch=function()
 				//l('productIconOff'+me.id).style.backgroundImage='url(img/'+iconOff+')';
 				l('productIconOff'+me.id).style.backgroundPosition='-'+iconOff[0]+'px -'+iconOff[1]+'px';
 				l('productName'+me.id).innerHTML=displayName;
-				l('productOwned'+me.id).innerHTML=me.amount?me.amount:'';
-				l('productPrice'+me.id).innerHTML=Beautify(Math.round(price));
-				l('productPriceMult'+me.id).innerHTML=(Game.buyBulk>1)?('x'+Game.buyBulk+' '):'';
-				l('productLevel'+me.id).innerHTML='lvl '+Beautify(me.level);
+				l('productOwned'+me.id).textContent=me.amount?me.amount:'';
+				l('productPrice'+me.id).textContent=Beautify(Math.round(price));
+				l('productPriceMult'+me.id).textContent=(Game.buyBulk>1)?('x'+Game.buyBulk+' '):'';
+				l('productLevel'+me.id).textContent='lvl '+Beautify(me.level);
 				if (Game.isMinigameReady(me) && Game.ascensionMode!=1)
 				{
 					l('productMinigameButton'+me.id).style.display='block';
-					if (!me.onMinigame) l('productMinigameButton'+me.id).innerHTML='View '+me.minigameName;
-					else l('productMinigameButton'+me.id).innerHTML='Close '+me.minigameName;
+					if (!me.onMinigame) l('productMinigameButton'+me.id).textContent='View '+me.minigameName;
+					else l('productMinigameButton'+me.id).textContent='Close '+me.minigameName;
 				}
 				else l('productMinigameButton'+me.id).style.display='none';
 			}
@@ -6832,7 +7314,7 @@ Game.Launch=function()
 				str+='</div>';
 				l('sectionLeftExtra').innerHTML=l('sectionLeftExtra').innerHTML+str;
 			}
-			else//draw it
+			else
 			{
 				var str='<div class="row" id="row'+this.id+'"><div class="separatorBottom"></div>';
 				str+='<div class="productButtons">';
@@ -6876,6 +7358,7 @@ Game.Launch=function()
 					//x : horizontal offset
 					//y : vertical offset (+32)
 					//rows : if >1, arrange the pictures in rows containing this many pictures
+					//frames : if present, slice the pic in [frames] horizontal slices and pick one at random
 					
 					var pic=this.art.pic;
 					var bg=this.art.bg;
@@ -6886,6 +7369,7 @@ Game.Launch=function()
 					var offX=this.art.x||0;
 					var offY=this.art.y||0;
 					var rows=this.art.rows||1;
+					var frames=this.art.frames||1;
 
 					if (typeof(bg)=='string') ctx.fillPattern(Pic(this.art.bg),0,0,this.canvas.width,this.canvas.height,128,128);
 					else bg(this,ctx);
@@ -6925,7 +7409,9 @@ Game.Launch=function()
 									y=32+Math.floor((Math.random()-0.5)*yV)+offY;
 								}
 								var usedPic=(typeof(pic)=='string'?pic:pic(this,i));
-								this.pics.push({x:Math.floor(x),y:Math.floor(y),z:y,pic:usedPic,id:i});
+								var frame=-1;
+								if (frames>1) frame=Math.floor(Math.random()*frames);
+								this.pics.push({x:Math.floor(x),y:Math.floor(y),z:y,pic:usedPic,id:i,frame:frame});
 								i++;
 								added++;
 							}
@@ -6946,13 +7432,30 @@ Game.Launch=function()
 					if (this.mouseOn)
 					{
 						var selected=-1;
-						//mouse detection only fits grandma sprites for now
-						var marginW=-18;
-						var marginH=-10;
-						for (var i=0;i<len;i++)
+						if (this.name=='Grandma')
 						{
-							var pic=this.pics[i];
-							if (this.mousePos[0]>=pic.x-marginW && this.mousePos[0]<pic.x+64+marginW && this.mousePos[1]>=pic.y-marginH && this.mousePos[1]<pic.y+64+marginH) selected=i;
+							//mouse detection only fits grandma sprites for now
+							var marginW=-18;
+							var marginH=-10;
+							for (var i=0;i<len;i++)
+							{
+								var pic=this.pics[i];
+								if (this.mousePos[0]>=pic.x-marginW && this.mousePos[0]<pic.x+64+marginW && this.mousePos[1]>=pic.y-marginH && this.mousePos[1]<pic.y+64+marginH) selected=i;
+							}
+							if (Game.prefs.customGrandmas && Game.customGrandmaNames.length>0)
+							{
+								var str='Names in white were submitted by our supporters on Patreon.';
+								ctx.globalAlpha=0.75;
+								ctx.fillStyle='#000';
+								ctx.font='9px Merriweather';
+								ctx.textAlign='left';
+								ctx.fillRect(0,0,ctx.measureText(str).width+4,12);
+								ctx.globalAlpha=1;
+								ctx.fillStyle='rgba(255,255,255,0.7)';
+								ctx.fillText(str,2,8);
+								ctx.fillStyle='rgba(255,255,255,1)';
+								ctx.fillText('white',2+ctx.measureText('Names in ').width,8);
+							}
 						}
 					}
 					
@@ -6961,6 +7464,7 @@ Game.Launch=function()
 					for (var i=0;i<len;i++)
 					{
 						var pic=this.pics[i];
+						var sprite=Pic(pic.pic);
 						if (selected==i && this.name=='Grandma')
 						{
 							ctx.font='14px Merriweather';
@@ -6989,9 +7493,12 @@ Game.Launch=function()
 							else ctx.fillStyle='rgba(255,255,255,0.7)';
 							ctx.fillText(text,Math.floor(x+width/2),Math.floor(y+16));
 							
-							ctx.drawImage(Pic(pic.pic),Math.floor(pic.x+Math.random()*4-2),Math.floor(pic.y+Math.random()*4-2));
+							ctx.drawImage(sprite,Math.floor(pic.x+Math.random()*4-2),Math.floor(pic.y+Math.random()*4-2));
 						}
-						else ctx.drawImage(Pic(pic.pic),pic.x,pic.y);
+						//else if (1) ctx.drawImage(sprite,0,0,sprite.width,sprite.height,pic.x,pic.y,sprite.width,sprite.height);
+						else if (pic.frame!=-1) ctx.drawImage(sprite,(sprite.width/frames)*pic.frame,0,sprite.width/frames,sprite.height,pic.x,pic.y,(sprite.width/frames),sprite.height);
+						else ctx.drawImage(sprite,pic.x,pic.y);
+						
 					}
 					
 					/*
@@ -7047,10 +7554,13 @@ Game.Launch=function()
 			if (Game.Has('Santa\'s dominion')) price*=0.99;
 			if (Game.Has('Faberge egg')) price*=0.99;
 			if (Game.Has('Divine discount')) price*=0.99;
-			if (Game.hasAura('Fierce Hoarder')) price*=0.98;
+			if (Game.Has('Fortune #100')) price*=0.99;
+			//if (Game.hasAura('Fierce Hoarder')) price*=0.98;
+			price*=1-Game.auraMult('Fierce Hoarder')*0.02;
 			if (Game.hasBuff('Everything must go')) price*=0.95;
 			if (Game.hasBuff('Crafty pixies')) price*=0.98;
 			if (Game.hasBuff('Nasty goblins')) price*=1.02;
+			if (building.fortune && Game.Has(building.fortune.name)) price*=0.93;
 			price*=Game.eff('buildingCost');
 			if (Game.hasGod)
 			{
@@ -7219,14 +7729,15 @@ Game.Launch=function()
 		new Game.Object('Cursor','cursor|cursors|clicked|[X] extra finger|[X] extra fingers','Autoclicks once every 10 seconds.',0,0,{},15,function(me){
 			var add=0;
 			if (Game.Has('Thousand fingers')) add+=		0.1;
-			if (Game.Has('Million fingers')) add+=		0.5;
-			if (Game.Has('Billion fingers')) add+=		5;
-			if (Game.Has('Trillion fingers')) add+=		50;
-			if (Game.Has('Quadrillion fingers')) add+=	500;
-			if (Game.Has('Quintillion fingers')) add+=	5000;
-			if (Game.Has('Sextillion fingers')) add+=	50000;
-			if (Game.Has('Septillion fingers')) add+=	500000;
-			if (Game.Has('Octillion fingers')) add+=	5000000;
+			if (Game.Has('Million fingers')) add*=		5;
+			if (Game.Has('Billion fingers')) add*=		10;
+			if (Game.Has('Trillion fingers')) add*=		20;
+			if (Game.Has('Quadrillion fingers')) add*=	20;
+			if (Game.Has('Quintillion fingers')) add*=	20;
+			if (Game.Has('Sextillion fingers')) add*=	20;
+			if (Game.Has('Septillion fingers')) add*=	20;
+			if (Game.Has('Octillion fingers')) add*=	20;
+			if (Game.Has('Nonillion fingers')) add*=	20;
 			var mult=1;
 			var num=0;
 			for (var i in Game.Objects) {if (Game.Objects[i].name!='Cursor') num+=Game.Objects[i].amount;}
@@ -7247,8 +7758,9 @@ Game.Launch=function()
 			if (this.amount>=300) Game.Unlock('Sextillion fingers');
 			if (this.amount>=350) Game.Unlock('Septillion fingers');
 			if (this.amount>=400) Game.Unlock('Octillion fingers');
+			if (this.amount>=450) Game.Unlock('Nonillion fingers');
 			
-			if (this.amount>=1) Game.Win('Click');if (this.amount>=2) Game.Win('Double-click');if (this.amount>=50) Game.Win('Mouse wheel');if (this.amount>=100) Game.Win('Of Mice and Men');if (this.amount>=200) Game.Win('The Digital');if (this.amount>=300) Game.Win('Extreme polydactyly');if (this.amount>=400) Game.Win('Dr. T');if (this.amount>=500) Game.Win('Thumbs, phalanges, metacarpals');if (this.amount>=600) Game.Win('With her finger and her thumb');
+			if (this.amount>=1) Game.Win('Click');if (this.amount>=2) Game.Win('Double-click');if (this.amount>=50) Game.Win('Mouse wheel');if (this.amount>=100) Game.Win('Of Mice and Men');if (this.amount>=200) Game.Win('The Digital');if (this.amount>=300) Game.Win('Extreme polydactyly');if (this.amount>=400) Game.Win('Dr. T');if (this.amount>=500) Game.Win('Thumbs, phalanges, metacarpals');if (this.amount>=600) Game.Win('With her finger and her thumb');if (this.amount>=700) Game.Win('Gotta hand it to you');if (this.amount>=800) Game.Win('The devil\'s workshop');
 		});
 		
 		Game.SpecialGrandmaUnlock=15;
@@ -7268,6 +7780,8 @@ Game.Launch=function()
 			if (Game.Has('Witch grandmas')) list.push('witchGrandma');
 			if (Game.Has('Lucky grandmas')) list.push('luckyGrandma');
 			if (Game.Has('Metagrandmas')) list.push('metaGrandma');
+			if (Game.Has('Script grannies')) list.push('scriptGrandma');
+			if (Game.Has('Alternate grandmas')) list.push('alternateGrandma');
 			if (Game.season=='christmas') list.push('elfGrandma');
 			if (Game.season=='easter') list.push('bunnyGrandma');
 			return choose(list)+'.png';
@@ -7285,8 +7799,16 @@ Game.Launch=function()
 			
 			mult*=Game.eff('grandmaCps');
 			
+			if (Game.Has('Cat ladies'))
+			{
+				for (var i=0;i<Game.UpgradesByPool['kitten'].length;i++)
+				{
+					if (Game.Has(Game.UpgradesByPool['kitten'][i].name)) mult*=1.29;
+				}
+			}
+			
 			mult*=Game.GetTieredCpsMult(me);
-
+			
 			var add=0;
 			if (Game.Has('One mind')) add+=Game.Objects['Grandma'].amount*0.02;
 			if (Game.Has('Communal brainsweep')) add+=Game.Objects['Grandma'].amount*0.02;
@@ -7294,7 +7816,8 @@ Game.Launch=function()
 			
 			var num=0;
 			for (var i in Game.Objects) {if (Game.Objects[i].name!='Grandma') num+=Game.Objects[i].amount;}
-			if (Game.hasAura('Elder Battalion')) mult*=1+0.01*num;
+			//if (Game.hasAura('Elder Battalion')) mult*=1+0.01*num;
+			mult*=1+Game.auraMult('Elder Battalion')*0.01*num;
 			
 			mult*=Game.magicCpS(me.name);
 			
@@ -7351,7 +7874,7 @@ Game.Launch=function()
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
 		//Game.last.minigameUrl='minigameDungeon.js';//not yet
-		//Game.last.minigameName='Dungeon';
+		Game.last.minigameName='Dungeon';
 		
 		new Game.Object('Bank','bank|banks|banked|Interest rates [X]% better|Interest rates [X]% better','Generates cookies from interest.',6,15,{base:'bank',xV:8,yV:4,w:56,rows:1,x:0,y:13},0,function(me){
 			var mult=1;
@@ -7362,6 +7885,8 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
+		Game.last.minigameUrl='minigameMarket.js';
+		Game.last.minigameName='Stock Market';
 		
 		new Game.Object('Temple','temple|temples|discovered|[X] sacred artifact retrieved|[X] sacred artifacts retrieved','Full of precious, ancient chocolate.',7,16,{base:'temple',xV:8,yV:4,w:72,rows:2,x:0,y:-5},0,function(me){
 			var mult=1;
@@ -7384,6 +7909,7 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
+		Game.last.displayName='<span style="font-size:90%;letter-spacing:-1px;position:relative;bottom:2px;">Wizard tower</span>';//shrink
 		Game.last.minigameUrl='minigameGrimoire.js';
 		Game.last.minigameName='Grimoire';
 		
@@ -7406,6 +7932,7 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
+		Game.last.displayName='<span style="font-size:90%;letter-spacing:-1px;position:relative;bottom:2px;">Alchemy lab</span>';//shrink
 		
 		new Game.Object('Portal','portal|portals|retrieved|[X] dimension enslaved|[X] dimensions enslaved','Opens a door to the Cookieverse.',11,7,{base:'portal',xV:32,yV:32,w:64,rows:2,x:0,y:0},1666666,function(me){
 			var mult=1;
@@ -7426,6 +7953,7 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
+		Game.last.displayName='<span style="font-size:80%;letter-spacing:-1px;position:relative;bottom:3px;">Time machine</span>';//shrink
 		
 		new Game.Object('Antimatter condenser','antimatter condenser|antimatter condensers|condensed|[X] extra quark flavor|[X] extra quark flavors','Condenses the antimatter in the universe into cookies.',13,13,{base:'antimattercondenser',xV:0,yV:64,w:64,rows:1,x:0,y:0},3999999999,function(me){
 			var mult=1;
@@ -7436,7 +7964,7 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
-		Game.last.displayName='<span style="font-size:65%;position:relative;bottom:4px;">Antimatter condenser</span>';//shrink the name since it's so large
+		Game.last.displayName='<span style="font-size:65%;letter-spacing:-1px;position:relative;bottom:4px;">Antim. condenser</span>';//shrink
 		
 		new Game.Object('Prism','prism|prisms|converted|[X] new color discovered|[X] new colors discovered','Converts light itself into cookies.',14,14,{base:'prism',xV:16,yV:4,w:64,rows:1,x:0,y:20},75000000000,function(me){
 			var mult=1;
@@ -7448,7 +7976,7 @@ Game.Launch=function()
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
 		
-		new Game.Object('Chancemaker','chancemaker|chancemakers|spontaneously generated|Chancemakers are powered by [X]-leaf clovers|Chancemakers are powered by [X]-leaf clovers','Generates cookies out of thin air through sheer luck.',15,19,{base:'chancemaker',xV:8,yV:64,w:64,rows:1,x:0,y:0},77777777777,function(me){
+		new Game.Object('Chancemaker','chancemaker|chancemakers|spontaneously generated|Chancemakers are powered by [X]-leaf clovers|Chancemakers are powered by [X]-leaf clovers','Generates cookies out of thin air through sheer luck.',15,19,{base:'chancemaker',xV:8,yV:64,w:64,rows:1,x:0,y:0,rows:2},77777777777,function(me){
 			var mult=1;
 			mult*=Game.GetTieredCpsMult(me);
 			mult*=Game.magicCpS(me.name);
@@ -7457,8 +7985,31 @@ Game.Launch=function()
 			Game.UnlockTiered(this);
 			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
 		});
+		Game.last.displayName='<span style="font-size:85%;letter-spacing:-1px;position:relative;bottom:2px;">Chancemaker</span>';//shrink
 		
 		new Game.Object('Fractal engine','fractal engine|fractal engines|made from cookies|[X] iteration deep|[X] iterations deep','Turns cookies into even more cookies.',16,20,{base:'fractalEngine',xV:8,yV:64,w:64,rows:1,x:0,y:0},12345678987654321,function(me){
+			var mult=1;
+			mult*=Game.GetTieredCpsMult(me);
+			mult*=Game.magicCpS(me.name);
+			return me.baseCps*mult;
+		},function(){
+			Game.UnlockTiered(this);
+			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
+		});
+		Game.last.displayName='<span style="font-size:80%;letter-spacing:-1px;position:relative;bottom:4px;">Fractal engine</span>';//shrink
+		
+		new Game.Object('Javascript console','javascript console|javascript consoles|programmed|Equipped with [X] external library|Equipped with [X] external libraries','Creates cookies from the very code this game was written in.',17,32,{base:'javascriptconsole',xV:8,yV:64,w:14,rows:1,x:8,y:-32,frames:2},12345678987654321,function(me){
+			var mult=1;
+			mult*=Game.GetTieredCpsMult(me);
+			mult*=Game.magicCpS(me.name);
+			return me.baseCps*mult;
+		},function(){
+			Game.UnlockTiered(this);
+			if (this.amount>=Game.SpecialGrandmaUnlock && Game.Objects['Grandma'].amount>0) Game.Unlock(this.grandma.name);
+		});
+		Game.last.displayName='<span style="font-size:65%;letter-spacing:-1px;position:relative;bottom:4px;">Javascript console</span>';//shrink
+		
+		new Game.Object('Idleverse','idleverse|idleverses|hijacked|[X] manifold|[X] manifolds','There\'s been countless other idle universes running alongside our own. You\'ve finally found a way to hijack their production and convert whatever they\'ve been making into cookies!',18,33,{base:'idleverse',xV:8,yV:64,w:48,rows:2,x:0,y:0,frames:4},12345678987654321,function(me){
 			var mult=1;
 			mult*=Game.GetTieredCpsMult(me);
 			mult*=Game.magicCpS(me.name);
@@ -7486,6 +8037,8 @@ Game.Launch=function()
 			'Prism':{name:'Corporate country',desc:'You\'ve made it to the top, and you can now buy entire nations to further your corporate greed. Godspeed.',icon:13},
 			'Chancemaker':{name:'Privatized planet',desc:'Actually, you know what\'s cool? A whole planet dedicated to producing, advertising, selling, and consuming your cookies.',icon:15},
 			'Fractal engine':{name:'Senate seat',desc:'Only through political dominion can you truly alter this world to create a brighter, more cookie-friendly future.',icon:16},
+			'Javascript console':{name:'Doctrine',desc:'Taking many forms -religion, culture, philosophy- a doctrine may, when handled properly, cause a lasting impact on civilizations, reshaping minds and people and ensuring all future generations share a singular goal - the production, and acquisition, of more cookies.',icon:17},
+			'Idleverse':{name:'Lateral expansions',desc:'Sometimes the best way to keep going up is sideways. Diversify your ventures through non-cookie investments.',icon:18},
 		};
 		
 		
@@ -7575,7 +8128,7 @@ Game.Launch=function()
 		Game.Upgrade.prototype.getPrice=function()
 		{
 			var price=this.basePrice;
-			if (this.priceFunc) price=this.priceFunc();
+			if (this.priceFunc) price=this.priceFunc(this);
 			if (price==0) return 0;
 			if (this.pool!='prestige')
 			{
@@ -7584,9 +8137,12 @@ Game.Launch=function()
 				if (Game.Has('Santa\'s dominion')) price*=0.98;
 				if (Game.Has('Faberge egg')) price*=0.99;
 				if (Game.Has('Divine sales')) price*=0.99;
+				if (Game.Has('Fortune #100')) price*=0.99;
+				if (this.kitten && Game.Has('Kitten wages')) price*=0.9;
 				if (Game.hasBuff('Haggler\'s luck')) price*=0.98;
 				if (Game.hasBuff('Haggler\'s misery')) price*=1.02;
-				if (Game.hasAura('Master of the Armory')) price*=0.98;
+				//if (Game.hasAura('Master of the Armory')) price*=0.98;
+				price*=1-Game.auraMult('Master of the Armory')*0.02;
 				price*=Game.eff('upgradeCost');
 				if (this.pool=='cookie' && Game.Has('Divine bakeries')) price/=5;
 			}
@@ -7675,8 +8231,25 @@ Game.Launch=function()
 							
 							for (var i in choices)
 							{
+								choices[i].id=i;
+								choices[i].order=choices[i].order||0;
+							}
+							
+							var sortMap=function(a,b)
+							{
+								if (a.order>b.order) return 1;
+								else if (a.order<b.order) return -1;
+								else return 0;
+							}
+							choices.sort(sortMap);
+							
+							for (var i=0;i<choices.length;i++)
+							{
+								if (!choices[i]) continue;
 								var icon=choices[i].icon;
-								str+='<div class="crate enabled'+(i==selected?' highlighted':'')+'" style="opacity:1;float:none;display:inline-block;'+(icon[2]?'background-image:url('+icon[2]+');':'')+'background-position:'+(-icon[0]*48)+'px '+(-icon[1]*48)+'px;" '+Game.clickStr+'="Game.UpgradesById['+this.id+'].choicesPick('+i+');PlaySound(\'snd/tick.mp3\');Game.choiceSelectorOn=-1;Game.UpgradesById['+this.id+'].buy();" onMouseOut="l(\'choiceSelectedName\').innerHTML=Game.choiceSelectorChoices[Game.choiceSelectorSelected].name;" onMouseOver="l(\'choiceSelectedName\').innerHTML=Game.choiceSelectorChoices['+i+'].name;"'+
+								var id=choices[i].id;
+								if (choices[i].div) str+='<div class="line"></div>';
+								str+='<div class="crate enabled'+(id==selected?' highlighted':'')+'" style="opacity:1;float:none;display:inline-block;'+(icon[2]?'background-image:url('+icon[2]+');':'')+'background-position:'+(-icon[0]*48)+'px '+(-icon[1]*48)+'px;" '+Game.clickStr+'="Game.UpgradesById['+this.id+'].choicesPick('+id+');Game.choiceSelectorOn=-1;Game.UpgradesById['+this.id+'].buy();" onMouseOut="l(\'choiceSelectedName\').innerHTML=Game.choiceSelectorChoices[Game.choiceSelectorSelected].name;" onMouseOver="l(\'choiceSelectedName\').innerHTML=Game.choiceSelectorChoices['+i+'].name;"'+
 								'></div>';
 							}
 						}
@@ -7839,8 +8412,9 @@ Game.Launch=function()
 		
 		Game.Has=function(what)
 		{
-			if (Game.ascensionMode==1 && Game.Upgrades[what].pool=='prestige') return 0;
-			return (Game.Upgrades[what]?Game.Upgrades[what].bought:0);
+			var it=Game.Upgrades[what];
+			if (Game.ascensionMode==1 && (it.pool=='prestige' || it.tier=='fortune')) return 0;
+			return (it?it.bought:0);
 		}
 		Game.HasUnlocked=function(what)
 		{
@@ -7855,7 +8429,7 @@ Game.Launch=function()
 			for (var i in Game.Upgrades)
 			{
 				var me=Game.Upgrades[i];
-				if (!me.bought && me.pool!='debug' && me.pool!='prestige' && me.pool!='prestigeDecor' && (!me.lasting || Game.ascensionMode!=1))
+				if (!me.bought && me.pool!='debug' && me.pool!='prestige' && me.pool!='prestigeDecor' && (Game.ascensionMode!=1 || (!me.lasting && me.tier!='fortune')))
 				{
 					if (me.unlocked) list.push(me);
 				}
@@ -7922,7 +8496,7 @@ Game.Launch=function()
 		
 		Game.NewUpgradeCookie=function(obj)
 		{
-			var upgrade=new Game.Upgrade(obj.name,'Cookie production multiplier <b>+'+Beautify((typeof(obj.power)=='function'?obj.power(obj):obj.power),1)+'%</b>.<q>'+obj.desc+'</q>',obj.price,obj.icon);
+			var upgrade=new Game.Upgrade(obj.name,'Cookie production multiplier <b>+'+Beautify((typeof(obj.power)==='function'?obj.power(obj):obj.power),1)+'%</b>.<q>'+obj.desc+'</q>',obj.price,obj.icon);
 			upgrade.power=obj.power;
 			upgrade.pool='cookie';
 			var toPush={cookies:obj.price/20,name:obj.name};
@@ -7948,9 +8522,12 @@ Game.Launch=function()
 			10:{name:'Mooncandy',unlock:350,achievUnlock:450,iconRow:19,color:'#7e7ab9',price:			500000000000000000000},
 			11:{name:'Astrofudge',unlock:400,achievUnlock:500,iconRow:28,color:'#9a3316',price:			5000000000000000000000000},
 			12:{name:'Alabascream',unlock:450,achievUnlock:550,iconRow:30,color:'#c1a88c',price:		50000000000000000000000000000},
+			13:{name:'Iridyum',unlock:500,achievUnlock:600,iconRow:31,color:'#adb1b3',price:			500000000000000000000000000000000},
 			'synergy1':{name:'Synergy I',unlock:15,iconRow:20,color:'#008595',special:1,req:'Synergies Vol. I',price:			200000},
 			'synergy2':{name:'Synergy II',unlock:75,iconRow:29,color:'#008595',special:1,req:'Synergies Vol. II',price:			200000000000},
+			'fortune':{name:'Fortune',unlock:-1,iconRow:32,color:'#9ab834',special:1,price:				77777777777777777777777777777},
 		};
+		for (var i in Game.Tiers){Game.Tiers[i].upgrades=[];}
 		Game.GetIcon=function(type,tier)
 		{
 			var col=0;
@@ -7974,6 +8551,8 @@ Game.Launch=function()
 		{
 			var upgrade=new Game.Upgrade(name,desc,Game.Objects[building].basePrice*Game.Tiers[tier].price,Game.GetIcon(building,tier));
 			Game.SetTier(building,tier);
+			if (!upgrade.buildingTie1 && building) upgrade.buildingTie1=Game.Objects[building];
+			if (tier=='fortune' && building) Game.Objects[building].fortune=upgrade;
 			return upgrade;
 		}
 		Game.SynergyUpgrade=function(name,desc,building1,building2,tier)
@@ -8017,12 +8596,13 @@ Game.Launch=function()
 					else if (syn.buildingTie2.name==me.name) mult*=(1+0.001*syn.buildingTie1.amount);
 				}
 			}
+			if (me.fortune && Game.Has(me.fortune.name)) mult*=1.07;
 			if (me.grandma && Game.Has(me.grandma.name)) mult*=(1+Game.Objects['Grandma'].amount*0.01*(1/(me.id-1)));
 			return mult;
 		}
 		Game.UnlockTiered=function(me)
 		{
-			for (var i in me.tieredUpgrades) {if (me.amount>=Game.Tiers[me.tieredUpgrades[i].tier].unlock) Game.Unlock(me.tieredUpgrades[i].name);}
+			for (var i in me.tieredUpgrades) {if (Game.Tiers[me.tieredUpgrades[i].tier].unlock!=-1 && me.amount>=Game.Tiers[me.tieredUpgrades[i].tier].unlock) Game.Unlock(me.tieredUpgrades[i].name);}
 			for (var i in me.tieredAchievs) {if (me.amount>=Game.Tiers[me.tieredAchievs[i].tier].achievUnlock) Game.Win(me.tieredAchievs[i].name);}
 			for (var i in me.synergies) {var syn=me.synergies[i];if (Game.Has(Game.Tiers[syn.tier].req) && syn.buildingTie1.amount>=Game.Tiers[syn.tier].unlock && syn.buildingTie2.amount>=Game.Tiers[syn.tier].unlock) Game.Unlock(syn.name);}
 		}
@@ -8039,9 +8619,9 @@ Game.Launch=function()
 		new Game.Upgrade('Carpal tunnel prevention cream','The mouse and cursors are <b>twice</b> as efficient.<q>it... it hurts to click...</q>',500,[0,1]);Game.MakeTiered(Game.last,2,0);
 		new Game.Upgrade('Ambidextrous','The mouse and cursors are <b>twice</b> as efficient.<q>Look ma, both hands!</q>',10000,[0,2]);Game.MakeTiered(Game.last,3,0);
 		new Game.Upgrade('Thousand fingers','The mouse and cursors gain <b>+0.1</b> cookies for each non-cursor object owned.<q>clickity</q>',100000,[0,13]);Game.MakeTiered(Game.last,4,0);
-		new Game.Upgrade('Million fingers','The mouse and cursors gain <b>+0.5</b> cookies for each non-cursor object owned.<q>clickityclickity</q>',10000000,[0,14]);Game.MakeTiered(Game.last,5,0);
-		new Game.Upgrade('Billion fingers','The mouse and cursors gain <b>+5</b> cookies for each non-cursor object owned.<q>clickityclickityclickity</q>',100000000,[0,15]);Game.MakeTiered(Game.last,6,0);
-		new Game.Upgrade('Trillion fingers','The mouse and cursors gain <b>+50</b> cookies for each non-cursor object owned.<q>clickityclickityclickityclickity</q>',1000000000,[0,16]);Game.MakeTiered(Game.last,7,0);
+		new Game.Upgrade('Million fingers','Multiplies the gain from Thousand fingers by <b>5</b>.<q>clickityclickity</q>',10000000,[0,14]);Game.MakeTiered(Game.last,5,0);
+		new Game.Upgrade('Billion fingers','Multiplies the gain from Thousand fingers by <b>10</b>.<q>clickityclickityclickity</q>',100000000,[0,15]);Game.MakeTiered(Game.last,6,0);
+		new Game.Upgrade('Trillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>clickityclickityclickityclickity</q>',1000000000,[0,16]);Game.MakeTiered(Game.last,7,0);
 		
 		order=200;
 		new Game.TieredUpgrade('Forwards from grandma','Grandmas are <b>twice</b> as efficient.<q>RE:RE:thought you\'d get a kick out of this ;))</q>','Grandma',1);
@@ -8088,20 +8668,22 @@ Game.Launch=function()
 		new Game.Upgrade('Kitten workers','You gain <b>more CpS</b> the more milk you have.<q>meow meow meow meow</q>',9000000000,Game.GetIcon('Kitten',2));Game.last.kitten=1;Game.MakeTiered(Game.last,2,18);
 		
 		order=10000;
-		Game.NewUpgradeCookie({name:'Plain cookies',desc:'We all gotta start somewhere.',icon:[2,3],power:																1,	price:	999999});
+		Game.NewUpgradeCookie({name:'Plain cookies',desc:'We all gotta start somewhere.',icon:[2,3],power:										1,	price:	999999});
 		Game.NewUpgradeCookie({name:'Sugar cookies',desc:'Tasty, if a little unimaginative.',icon:[7,3],power:									1,	price:	999999*5});
 		Game.NewUpgradeCookie({name:'Oatmeal raisin cookies',desc:'No raisin to hate these.',icon:[0,3],power:									1,	price:	9999999});
-		Game.NewUpgradeCookie({name:'Peanut butter cookies',desc:'Get yourself some jam cookies!',icon:[1,3],power:								1,	price:	9999999*5});
-		Game.NewUpgradeCookie({name:'Coconut cookies',desc:'Flaky, but not unreliable. Some people go crazy for these.',icon:[3,3],power:											2,	price:	99999999});
+		Game.NewUpgradeCookie({name:'Peanut butter cookies',desc:'Get yourself some jam cookies!',icon:[1,3],power:								2,	price:	9999999*5});
+		Game.NewUpgradeCookie({name:'Coconut cookies',desc:'Flaky, but not unreliable. Some people go crazy for these.',icon:[3,3],power:		2,	price:	99999999});
 		order=10001;
 		Game.NewUpgradeCookie({name:'White chocolate cookies',desc:'I know what you\'ll say. It\'s just cocoa butter! It\'s not real chocolate!<br>Oh please.',icon:[4,3],power:2,	price:	99999999*5});
-		Game.NewUpgradeCookie({name:'Macadamia nut cookies',desc:'They\'re macadamn delicious!',icon:[5,3],power:								2,	price:	999999999});
+		order=10000;
+		Game.NewUpgradeCookie({name:'Macadamia nut cookies',desc:'They\'re macadamn delicious!',icon:[5,3],power:								2,	price:	99999999});
+		order=10002;
 		Game.NewUpgradeCookie({name:'Double-chip cookies',desc:'DOUBLE THE CHIPS<br>DOUBLE THE TASTY<br>(double the calories)',icon:[6,3],power:2,	price:	999999999*5});
 		Game.NewUpgradeCookie({name:'White chocolate macadamia nut cookies',desc:'Orteil\'s favorite.',icon:[8,3],power:						2,	price:	9999999999});
 		Game.NewUpgradeCookie({name:'All-chocolate cookies',desc:'CHOCOVERDOSE.',icon:[9,3],power:												2,	price:	9999999999*5});
 		
 		order=100;
-		new Game.Upgrade('Quadrillion fingers','The mouse and cursors gain <b>+500</b> cookies for each non-cursor object owned.<q>clickityclickityclickityclickityclick</q>',10000000000,[0,17]);Game.MakeTiered(Game.last,8,0);
+		new Game.Upgrade('Quadrillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>clickityclickityclickityclickityclick</q>',10000000000,[0,17]);Game.MakeTiered(Game.last,8,0);
 		
 		order=200;new Game.TieredUpgrade('Prune juice','Grandmas are <b>twice</b> as efficient.<q>Gets me going.</q>','Grandma',4);
 		order=300;new Game.TieredUpgrade('Genetically-modified cookies','Farms are <b>twice</b> as efficient.<q>All-natural mutations.</q>','Farm',4);
@@ -8120,8 +8702,8 @@ Game.Launch=function()
 		new Game.Upgrade('Kitten engineers','You gain <b>more CpS</b> the more milk you have.<q>meow meow meow meow, sir</q>',90000000000000,Game.GetIcon('Kitten',3));Game.last.kitten=1;Game.MakeTiered(Game.last,3,18);
 		
 		order=10020;
-		Game.NewUpgradeCookie({name:'Dark chocolate-coated cookies',desc:'These absorb light so well you almost need to squint to see them.',icon:[10,3],power:			4,	price:	99999999999});
-		Game.NewUpgradeCookie({name:'White chocolate-coated cookies',desc:'These dazzling cookies absolutely glisten with flavor.',icon:[11,3],power:					4,	price:	99999999999});
+		Game.NewUpgradeCookie({name:'Dark chocolate-coated cookies',desc:'These absorb light so well you almost need to squint to see them.',icon:[10,3],power:			5,	price:	99999999999});
+		Game.NewUpgradeCookie({name:'White chocolate-coated cookies',desc:'These dazzling cookies absolutely glisten with flavor.',icon:[11,3],power:					5,	price:	99999999999});
 		
 		Game.GrandmaSynergies=[];
 		Game.GrandmaSynergy=function(name,desc,building)
@@ -8212,7 +8794,7 @@ Game.Launch=function()
 		Game.NewUpgradeCookie({name:'Zebra cookies',desc:'...',icon:[1,4],power:									2,	price:	999999999999});
 		
 		order=100;
-		new Game.Upgrade('Quintillion fingers','The mouse and cursors gain <b>+5000</b> cookies for each non-cursor object owned.<q>man, just go click click click click click, it\'s real easy, man.</q>',10000000000000,[0,18]);Game.MakeTiered(Game.last,9,0);
+		new Game.Upgrade('Quintillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>man, just go click click click click click, it\'s real easy, man.</q>',10000000000000,[0,18]);Game.MakeTiered(Game.last,9,0);
 		
 		order=40000;
 		new Game.Upgrade('Gold hoard','Golden cookies appear <b>really often</b>.<q>That\'s entirely too many.</q>',7,[10,14]);//debug purposes only
@@ -8253,8 +8835,9 @@ Game.Launch=function()
 		new Game.Upgrade('Neuromancy','Can toggle upgrades on and off at will in the stats menu.<q>Can also come in handy to unsee things that can\'t be unseen.</q>',7,[4,9]);//debug purposes only
 		Game.last.pool='debug';
 		
-		order=10031;
+		order=10020;
 		Game.NewUpgradeCookie({name:'Empire biscuits',desc:'For your growing cookie empire, of course!',icon:[5,4],power:											2,	price:	99999999999999});
+		order=10031;
 		Game.NewUpgradeCookie({name:'British tea biscuits',desc:'Quite.',icon:[6,4],require:'Tin of british tea biscuits',power:									2,	price:	99999999999999});
 		Game.NewUpgradeCookie({name:'Chocolate british tea biscuits',desc:'Yes, quite.',icon:[7,4],require:Game.last.name,power:									2,	price:	99999999999999});
 		Game.NewUpgradeCookie({name:'Round british tea biscuits',desc:'Yes, quite riveting.',icon:[8,4],require:Game.last.name,power:								2,	price:	99999999999999});
@@ -8282,7 +8865,7 @@ Game.Launch=function()
 		
 		
 		order=100;
-		new Game.Upgrade('Sextillion fingers','The mouse and cursors gain <b>+50000</b> cookies for each non-cursor object owned.<q>sometimes<br>things just<br>click</q>',10000000000000000,[0,19]);Game.MakeTiered(Game.last,10,0);
+		new Game.Upgrade('Sextillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>sometimes<br>things just<br>click</q>',10000000000000000,[0,19]);Game.MakeTiered(Game.last,10,0);
 		
 		order=200;new Game.TieredUpgrade('Double-thick glasses','Grandmas are <b>twice</b> as efficient.<q>Oh... so THAT\'s what I\'ve been baking.</q>','Grandma',5);
 		order=300;new Game.TieredUpgrade('Gingerbread scarecrows','Farms are <b>twice</b> as efficient.<q>Staring at your crops with mischievous glee.</q>','Farm',5);
@@ -8297,7 +8880,7 @@ Game.Launch=function()
 		order=150;
 		new Game.Upgrade('Unobtainium mouse','Clicking gains <b>+1% of your CpS</b>.<q>These nice mice should suffice.</q>',5000000000000,[11,14]);Game.MakeTiered(Game.last,5,11);
 		
-		order=10020;
+		order=10030;
 		Game.NewUpgradeCookie({name:'Caramoas',desc:'Yeah. That\'s got a nice ring to it.',icon:[14,4],require:'Box of brand biscuits',power:					3,	price:	9999999999999999});
 		Game.NewUpgradeCookie({name:'Sagalongs',desc:'Grandma\'s favorite?',icon:[15,3],require:'Box of brand biscuits',power:									3,	price:	9999999999999999});
 		Game.NewUpgradeCookie({name:'Shortfoils',desc:'Foiled again!',icon:[15,4],require:'Box of brand biscuits',power:										3,	price:	9999999999999999});
@@ -8413,7 +8996,7 @@ Game.Launch=function()
 		Game.NewUpgradeCookie({name:'Golden heart biscuits',desc:'A beautiful biscuit to symbolize kindness, true love, and sincerity.',require:Game.last.name,season:'valentines',icon:[21,4],										power:heartPower,price: 1000000000000000000});
 		Game.NewUpgradeCookie({name:'Eternal heart biscuits',desc:'Silver icing for a very special someone you\'ve liked for a long, long time.',require:Game.last.name,season:'valentines',icon:[19,4],							power:heartPower,price: 1000000000000000000000});
 		
-		Game.heartDrops=['Pure heart biscuits','Ardent heart biscuits','Sour heart biscuits','Weeping heart biscuits','Golden heart biscuits','Eternal heart biscuits'];
+		Game.heartDrops=['Pure heart biscuits','Ardent heart biscuits','Sour heart biscuits','Weeping heart biscuits','Golden heart biscuits','Eternal heart biscuits','Prism heart biscuits'];
 		
 		Game.GetHowManyHeartDrops=function()
 		{
@@ -8454,8 +9037,8 @@ Game.Launch=function()
 		new Game.Upgrade('Kitten managers','You gain <b>more CpS</b> the more milk you have.<q>that\'s not gonna paws any problem, sir</q>',900000000000000000000,Game.GetIcon('Kitten',5));Game.last.kitten=1;Game.MakeTiered(Game.last,5,18);
 		
 		order=100;
-		new Game.Upgrade('Septillion fingers','The mouse and cursors gain <b>+500000</b> cookies for each non-cursor object owned.<q>[cursory flavor text]</q>',10000000000000000000,[12,20]);Game.MakeTiered(Game.last,11,0);
-		new Game.Upgrade('Octillion fingers','The mouse and cursors gain <b>+5000000</b> cookies for each non-cursor object owned.<q>Turns out you <b>can</b> quite put your finger on it.</q>',10000000000000000000000,[12,19]);Game.MakeTiered(Game.last,12,0);
+		new Game.Upgrade('Septillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>[cursory flavor text]</q>',10000000000000000000,[12,20]);Game.MakeTiered(Game.last,11,0);
+		new Game.Upgrade('Octillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>Turns out you <b>can</b> quite put your finger on it.</q>',10000000000000000000000,[12,19]);Game.MakeTiered(Game.last,12,0);
 		
 		order=150;new Game.Upgrade('Eludium mouse','Clicking gains <b>+1% of your CpS</b>.<q>I rodent do that if I were you.</q>',500000000000000,[11,15]);Game.MakeTiered(Game.last,6,11);
 		new Game.Upgrade('Wishalloy mouse','Clicking gains <b>+1% of your CpS</b>.<q>Clicking is fine and dandy, but don\'t smash your mouse over it. Get your game on. Go play.</q>',50000000000000000,[11,16]);Game.MakeTiered(Game.last,7,11);
@@ -8617,8 +9200,8 @@ Game.Launch=function()
 		new Game.Upgrade('Box of brand biscuits','Contains an assortment of popular biscuits.<q>They\'re brand new!</q>',25,[20,9]);Game.last.pool='prestige';Game.last.parents=['Heavenly cookies'];
 	
 		order=10020;
-		Game.NewUpgradeCookie({name:'Pure black chocolate cookies',desc:'Dipped in a lab-made substance darker than the darkest cocoa (dubbed "chocoalate").',icon:[26,3],power:									4,price: 9999999999999999*5});
-		Game.NewUpgradeCookie({name:'Pure white chocolate cookies',desc:'Elaborated on the nano-scale, the coating on this biscuit is able to refract light even in a pitch-black environment.',icon:[26,4],power:	4,price: 9999999999999999*5});
+		Game.NewUpgradeCookie({name:'Pure black chocolate cookies',desc:'Dipped in a lab-made substance darker than the darkest cocoa (dubbed "chocoalate").',icon:[26,3],power:									5,price: 9999999999999999*5});
+		Game.NewUpgradeCookie({name:'Pure white chocolate cookies',desc:'Elaborated on the nano-scale, the coating on this biscuit is able to refract light even in a pitch-black environment.',icon:[26,4],power:	5,price: 9999999999999999*5});
 		Game.NewUpgradeCookie({name:'Ladyfingers',desc:'Cleaned and sanitized so well you\'d swear they\'re actual biscuits.',icon:[27,3],power:																	3,price: 99999999999999999});
 		Game.NewUpgradeCookie({name:'Tuiles',desc:'These never go out of tile.',icon:[27,4],power:																													3,price: 99999999999999999*5});
 		Game.NewUpgradeCookie({name:'Chocolate-stuffed biscuits',desc:'A princely snack!<br>The holes are so the chocolate stuffing can breathe.',icon:[28,3],power:												3,price: 999999999999999999});
@@ -8627,20 +9210,20 @@ Game.Launch=function()
 		Game.NewUpgradeCookie({name:'Cream cookies',desc:'It\'s like two chocolate chip cookies! But brought together with the magic of cream! It\'s fiendishly perfect!',icon:[29,4],power:						3,price: 9999999999999999999*5});
 
 		order=0;
-		var desc='Placing an upgrade in this slot will make its effects <b>permanent</b> across all playthroughs.<br><b>Click to activate.</b>';
+		var desc='Placing an upgrade in this slot will make its effects <b>permanent</b> across all playthroughs.';
 		new Game.Upgrade('Permanent upgrade slot I',desc,	100,[0,10]);Game.last.pool='prestige';Game.last.iconFunction=function(){return Game.PermanentSlotIcon(0);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(0);};
-		new Game.Upgrade('Permanent upgrade slot II',desc,	2000,[1,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot I'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(1);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(1);};
-		new Game.Upgrade('Permanent upgrade slot III',desc,	30000,[2,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot II'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(2);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(2);};
-		new Game.Upgrade('Permanent upgrade slot IV',desc,	400000,[3,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot III'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(3);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(3);};
-		new Game.Upgrade('Permanent upgrade slot V',desc,	5000000,[4,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot IV'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(4);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(4);};
+		new Game.Upgrade('Permanent upgrade slot II',desc,	20000,[1,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot I'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(1);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(1);};
+		new Game.Upgrade('Permanent upgrade slot III',desc,	3000000,[2,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot II'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(2);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(2);};
+		new Game.Upgrade('Permanent upgrade slot IV',desc,	400000000,[3,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot III'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(3);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(3);};
+		new Game.Upgrade('Permanent upgrade slot V',desc,	50000000000,[4,10]);Game.last.pool='prestige';Game.last.parents=['Permanent upgrade slot IV'];Game.last.iconFunction=function(){return Game.PermanentSlotIcon(4);};Game.last.activateFunction=function(){Game.AssignPermanentSlot(4);};
 		
 		var slots=['Permanent upgrade slot I','Permanent upgrade slot II','Permanent upgrade slot III','Permanent upgrade slot IV','Permanent upgrade slot V'];
 		for (var i=0;i<slots.length;i++)
 		{
-			Game.Upgrades[slots[i]].descFunc=function(i){return function(){
-				if (Game.permanentUpgrades[i]==-1) return this.desc;
+			Game.Upgrades[slots[i]].descFunc=function(i){return function(context){
+				if (Game.permanentUpgrades[i]==-1) return this.desc+(context=='stats'?'':'<br><b>Click to activate.</b>');
 				var upgrade=Game.UpgradesById[Game.permanentUpgrades[i]];
-				return '<div style="text-align:center;">'+'Current : <div class="icon" style="vertical-align:middle;display:inline-block;'+(upgrade.icon[2]?'background-image:url('+upgrade.icon[2]+');':'')+'background-position:'+(-upgrade.icon[0]*48)+'px '+(-upgrade.icon[1]*48)+'px;transform:scale(0.5);margin:-16px;"></div> <b>'+upgrade.name+'</b><div class="line"></div></div>'+this.desc;
+				return '<div style="text-align:center;">'+'Current : <div class="icon" style="vertical-align:middle;display:inline-block;'+(upgrade.icon[2]?'background-image:url('+upgrade.icon[2]+');':'')+'background-position:'+(-upgrade.icon[0]*48)+'px '+(-upgrade.icon[1]*48)+'px;transform:scale(0.5);margin:-16px;"></div> <b>'+upgrade.name+'</b><div class="line"></div></div>'+this.desc+(context=='stats'?'':'<br><b>Click to activate.</b>');
 			};}(i);
 		}
 		
@@ -8815,47 +9398,59 @@ Game.Launch=function()
 		new Game.Upgrade('Milk selector','Lets you pick what flavor of milk to display.',0,[1,8]);
 		Game.last.descFunc=function(){
 			var choice=this.choicesFunction()[Game.milkType];
+			if (!choice) choice=this.choicesFunction()[0];
 			return '<div style="text-align:center;">Current : <div class="icon" style="vertical-align:middle;display:inline-block;'+(choice.icon[2]?'background-image:url('+choice.icon[2]+');':'')+'background-position:'+(-choice.icon[0]*48)+'px '+(-choice.icon[1]*48)+'px;transform:scale(0.5);margin:-16px;"></div> <b>'+choice.name+'</b></div><div class="line"></div>'+this.desc;
 		};
 		
 		Game.last.pool='toggle';
 		Game.last.choicesFunction=function()
 		{
+			var rank=0;
 			var choices=[];
 			choices[0]={name:'Automatic',icon:[0,7]};
-			choices[1]={name:'Plain milk',icon:[1,8]};
-			choices[2]={name:'Chocolate milk',icon:[2,8]};
-			choices[3]={name:'Raspberry milk',icon:[3,8]};
-			choices[4]={name:'Orange milk',icon:[4,8]};
-			choices[5]={name:'Caramel milk',icon:[5,8]};
-			choices[6]={name:'Banana milk',icon:[6,8]};
-			choices[7]={name:'Lime milk',icon:[7,8]};
-			choices[8]={name:'Blueberry milk',icon:[8,8]};
-			choices[9]={name:'Strawberry milk',icon:[9,8]};
-			choices[10]={name:'Vanilla milk',icon:[10,8]};
+			choices[1]={name:'Plain milk',icon:[1,8],rank:rank++};
+			choices[2]={name:'Chocolate milk',icon:[2,8],rank:rank++};
+			choices[3]={name:'Raspberry milk',icon:[3,8],rank:rank++};
+			choices[4]={name:'Orange milk',icon:[4,8],rank:rank++};
+			choices[5]={name:'Caramel milk',icon:[5,8],rank:rank++};
+			choices[6]={name:'Banana milk',icon:[6,8],rank:rank++};
+			choices[7]={name:'Lime milk',icon:[7,8],rank:rank++};
+			choices[8]={name:'Blueberry milk',icon:[8,8],rank:rank++};
+			choices[9]={name:'Strawberry milk',icon:[9,8],rank:rank++};
+			choices[10]={name:'Vanilla milk',icon:[10,8],rank:rank++};
+			
+			choices[19]={name:'Honey milk',icon:[21,23],rank:rank++};
+			choices[20]={name:'Coffee milk',icon:[22,23],rank:rank++};
+			choices[21]={name:'Tea milk',icon:[23,23],rank:rank++};
+			choices[22]={name:'Coconut milk',icon:[24,23],rank:rank++};
+			choices[23]={name:'Cherry milk',icon:[25,23],rank:rank++};
+			
+			choices[25]={name:'Spiced milk',icon:[26,23],rank:rank++};
+			choices[26]={name:'Maple milk',icon:[28,23],rank:rank++};
+			choices[27]={name:'Mint milk',icon:[29,23],rank:rank++};
+			choices[28]={name:'Licorice milk',icon:[30,23],rank:rank++};
+			choices[29]={name:'Rose milk',icon:[31,23],rank:rank++};
+			choices[30]={name:'Dragonfruit milk',icon:[21,24],rank:rank++};
 			
 			if (Game.Has('Fanciful dairy selection'))
 			{
-				choices[11]={name:'Zebra milk',icon:[10,7]};
-				choices[12]={name:'Cosmic milk',icon:[9,7]};
-				choices[13]={name:'Flaming milk',icon:[8,7]};
-				choices[14]={name:'Sanguine milk',icon:[7,7]};
-				choices[15]={name:'Midas milk',icon:[6,7]};
-				choices[16]={name:'Midnight milk',icon:[5,7]};
-				choices[17]={name:'Green inferno milk',icon:[4,7]};
-				choices[18]={name:'Frostfire milk',icon:[3,7]};
+				choices[11]={name:'Zebra milk',icon:[10,7],order:10,div:true};
+				choices[12]={name:'Cosmic milk',icon:[9,7],order:10};
+				choices[13]={name:'Flaming milk',icon:[8,7],order:10};
+				choices[14]={name:'Sanguine milk',icon:[7,7],order:10};
+				choices[15]={name:'Midas milk',icon:[6,7],order:10};
+				choices[16]={name:'Midnight milk',icon:[5,7],order:10};
+				choices[17]={name:'Green inferno milk',icon:[4,7],order:10};
+				choices[18]={name:'Frostfire milk',icon:[3,7],order:10};
 				
-				choices[24]={name:'Soy milk',icon:[27,23]};
+				choices[24]={name:'Soy milk',icon:[27,23],order:10};
 			}
 			
-			choices[19]={name:'Honey milk',icon:[21,23]};
-			choices[20]={name:'Coffee milk',icon:[22,23]};
-			choices[21]={name:'Tea milk',icon:[23,23]};
-			choices[22]={name:'Coconut milk',icon:[24,23]};
-			choices[23]={name:'Cherry milk',icon:[25,23]};
-			
-			choices[25]={name:'Spiced milk',icon:[26,23]};
-			choices[26]={name:'Maple milk',icon:[28,23]};
+			var maxRank=Math.floor(Game.AchievementsOwned/25);
+			for (var i in choices)
+			{
+				if (choices[i].rank && choices[i].rank>maxRank) choices[i]=0;
+			}
 			
 			choices[Game.milkType].selected=1;
 			return choices;
@@ -8891,14 +9486,19 @@ Game.Launch=function()
 			24:{pic:'milkSoy'},
 			25:{pic:'milkSpiced'},
 			26:{pic:'milkMaple'},
+			27:{pic:'milkMint'},
+			28:{pic:'milkLicorice'},
+			29:{pic:'milkRose'},
+			30:{pic:'milkDragonfruit'},
 		};
 		
 		
 		order=10300;
-		Game.NewUpgradeCookie({name:'Milk chocolate butter biscuit',desc:'Rewarded for owning 100 of everything.<br>It bears the engraving of a fine entrepreneur.',icon:[27,8],power:	10,price: 999999999999999999999,locked:1});
-		Game.NewUpgradeCookie({name:'Dark chocolate butter biscuit',desc:'Rewarded for owning 150 of everything.<br>It is adorned with the image of an experienced cookie tycoon.',icon:[27,9],power:	10,price: 999999999999999999999999,locked:1});
-		Game.NewUpgradeCookie({name:'White chocolate butter biscuit',desc:'Rewarded for owning 200 of everything.<br>The chocolate is chiseled to depict a masterful pastry magnate.',icon:[28,9],power:	10,price: 999999999999999999999999999,locked:1});
-		Game.NewUpgradeCookie({name:'Ruby chocolate butter biscuit',desc:'Rewarded for owning 250 of everything.<br>Covered in a rare red chocolate, this biscuit is etched to represent the face of a cookie industrialist gone mad with power.',icon:[28,8],power:	10,price: 999999999999999999999999999999,locked:1});
+		var butterBiscuitMult=100000000;
+		Game.NewUpgradeCookie({name:'Milk chocolate butter biscuit',desc:'Rewarded for owning 100 of everything.<br>It bears the engraving of a fine entrepreneur.',icon:[27,8],power:	10,price: 999999999999999999999*butterBiscuitMult,locked:1});
+		Game.NewUpgradeCookie({name:'Dark chocolate butter biscuit',desc:'Rewarded for owning 150 of everything.<br>It is adorned with the image of an experienced cookie tycoon.',icon:[27,9],power:	10,price: 999999999999999999999999*butterBiscuitMult,locked:1});
+		Game.NewUpgradeCookie({name:'White chocolate butter biscuit',desc:'Rewarded for owning 200 of everything.<br>The chocolate is chiseled to depict a masterful pastry magnate.',icon:[28,9],power:	10,price: 999999999999999999999999999*butterBiscuitMult,locked:1});
+		Game.NewUpgradeCookie({name:'Ruby chocolate butter biscuit',desc:'Rewarded for owning 250 of everything.<br>Covered in a rare red chocolate, this biscuit is etched to represent the face of a cookie industrialist gone mad with power.',icon:[28,8],power:	10,price: 999999999999999999999999999999*butterBiscuitMult,locked:1});
 		
 		order=10020;
 		Game.NewUpgradeCookie({name:'Gingersnaps',desc:'Cookies with a soul. Probably.',icon:[29,10],power:						4,price: 99999999999999999999});
@@ -8911,7 +9511,7 @@ Game.Launch=function()
 		order=10030;
 		Game.NewUpgradeCookie({name:'Digits',desc:'Three flavors, zero phalanges.',icon:[26,8],require:'Box of brand biscuits',power:												2,	price:	999999999999999*5});
 		
-		order=10030;
+		order=10029;
 		Game.NewUpgradeCookie({name:'Butter horseshoes',desc:'It would behoove you to not overindulge in these.',icon:[22,9],require:'Tin of butter cookies',power:							4,	price:	99999999999999999999999});
 		Game.NewUpgradeCookie({name:'Butter pucks',desc:'Lord, what fools these mortals be!<br>(This is kind of a hokey reference.)',icon:[23,9],require:'Tin of butter cookies',power:							4,	price:	99999999999999999999999*5});
 		Game.NewUpgradeCookie({name:'Butter knots',desc:'Look, you can call these pretzels if you want, but you\'d just be fooling yourself, wouldn\'t you?',icon:[24,9],require:'Tin of butter cookies',power:							4,	price:	999999999999999999999999});
@@ -9029,7 +9629,7 @@ Game.Launch=function()
 		Game.last.pool='debug';
 		
 		order=10300;
-		Game.NewUpgradeCookie({name:'Lavender chocolate butter biscuit',desc:'Rewarded for owning 300 of everything.<br>This subtly-flavored biscuit represents the accomplishments of decades of top-secret research. The molded design on the chocolate resembles a well-known entrepreneur who gave their all to the ancient path of baking.',icon:[26,10],power:	10,price: 999999999999999999999999999999999,locked:1});
+		Game.NewUpgradeCookie({name:'Lavender chocolate butter biscuit',desc:'Rewarded for owning 300 of everything.<br>This subtly-flavored biscuit represents the accomplishments of decades of top-secret research. The molded design on the chocolate resembles a well-known entrepreneur who gave their all to the ancient path of baking.',icon:[26,10],power:	10,price: 999999999999999999999999999999999*butterBiscuitMult,locked:1});
 		
 		order=10030;
 		Game.NewUpgradeCookie({name:'Lombardia cookies',desc:'These come from those farms with the really good memory.',icon:[23,13],require:'Box of brand biscuits',power:												3,	price:	999999999999999999999*5});
@@ -9188,7 +9788,7 @@ Game.Launch=function()
 		new Game.Upgrade('Kitten marketeers','You gain <b>more CpS</b> the more milk you have.<q>no such thing as a saturated markit, sir</q>',900000000000000000000000000000000000000,Game.GetIcon('Kitten',11));Game.last.kitten=1;Game.MakeTiered(Game.last,11,18);
 		
 		order=10030;
-		Game.NewUpgradeCookie({name:'Festivity loops',desc:'These garish biscuits are a perfect fit for children\'s birthday parties or the funerals of strange, eccentric billionaires.',icon:[25,17],require:'Box of brand biscuits',power:												2,	price:	999999999999999*5});
+		Game.NewUpgradeCookie({name:'Festivity loops',desc:'These garish biscuits are a perfect fit for children\'s birthday parties or the funerals of strange, eccentric billionaires.',icon:[25,17],require:'Box of brand biscuits',power:												2,	price:	999999999999999999999999*5});
 		
 		order=10020;
 		Game.NewUpgradeCookie({name:'Persian rice cookies',desc:'Rose water and poppy seeds are the secret ingredients of these small, butter-free cookies.',icon:[28,15],power:						4,price: 99999999999999999999999999999999*5});
@@ -9223,9 +9823,9 @@ Game.Launch=function()
 		
 		
 		order=10300;
-		Game.NewUpgradeCookie({name:'Synthetic chocolate green honey butter biscuit',desc:'Rewarded for owning 350 of everything.<br>The recipe for this butter biscuit was once the sole heritage of an ancient mountain monastery. Its flavor is so refined that only a slab of lab-made chocolate specifically engineered to be completely tasteless could complement it.<br>Also it\'s got your face on it.',icon:[24,26],power:	10,price: 999999999999999999999999999999999999,locked:1});
-		Game.NewUpgradeCookie({name:'Royal raspberry chocolate butter biscuit',desc:'Rewarded for owning 400 of everything.<br>Once reserved for the megalomaniac elite, this unique strain of fruity chocolate has a flavor and texture unlike any other. Whether its exorbitant worth is improved or lessened by the presence of your likeness on it still remains to be seen.',icon:[25,26],power:	10,price: 999999999999999999999999999999999999999,locked:1});
-		Game.NewUpgradeCookie({name:'Ultra-concentrated high-energy chocolate butter biscuit',desc:'Rewarded for owning 450 of everything.<br>Infused with the power of several hydrogen bombs through a process that left most nuclear engineers and shareholders perplexed. Currently at the center of some rather heated United Nations meetings. Going in more detail about this chocolate would violate several state secrets, but we\'ll just add that someone\'s bust seems to be pictured on it. Perhaps yours?',icon:[26,26],power:	10,price: 999999999999999999999999999999999999999999,locked:1});
+		Game.NewUpgradeCookie({name:'Synthetic chocolate green honey butter biscuit',desc:'Rewarded for owning 350 of everything.<br>The recipe for this butter biscuit was once the sole heritage of an ancient mountain monastery. Its flavor is so refined that only a slab of lab-made chocolate specifically engineered to be completely tasteless could complement it.<br>Also it\'s got your face on it.',icon:[24,26],power:	10,price: 999999999999999999999999999999999999*butterBiscuitMult,locked:1});
+		Game.NewUpgradeCookie({name:'Royal raspberry chocolate butter biscuit',desc:'Rewarded for owning 400 of everything.<br>Once reserved for the megalomaniac elite, this unique strain of fruity chocolate has a flavor and texture unlike any other. Whether its exorbitant worth is improved or lessened by the presence of your likeness on it still remains to be seen.',icon:[25,26],power:	10,price: 999999999999999999999999999999999999999*butterBiscuitMult,locked:1});
+		Game.NewUpgradeCookie({name:'Ultra-concentrated high-energy chocolate butter biscuit',desc:'Rewarded for owning 450 of everything.<br>Infused with the power of several hydrogen bombs through a process that left most nuclear engineers and shareholders perplexed. Currently at the center of some rather heated United Nations meetings. Going in more detail about this chocolate would violate several state secrets, but we\'ll just add that someone\'s bust seems to be pictured on it. Perhaps yours?',icon:[26,26],power:	10,price: 999999999999999999999999999999999999999999*butterBiscuitMult,locked:1});
 		
 		
 		
@@ -9250,16 +9850,16 @@ Game.Launch=function()
 		
 		new Game.Upgrade('Eye of the wrinkler','Mouse over a wrinkler to see how many cookies are in its stomach.<q>Just a wrinkler and its will to survive.<br>Hangin\' tough, stayin\' hungry.</q>',99999999,[27,26]);Game.last.pool='prestige';Game.last.parents=['Wrinkly cookies'];
 		
-		new Game.Upgrade('Inspired checklist','Unlocks the <b>Buy all</b> feature, which lets you instantly purchase every upgrade in your store (starting from the cheapest one).<br>Also unlocks the <b>Vault</b>, a store section where you can place upgrades you do not wish to auto-buy.<q>Snazzy grandma accessories? Check. Transdimensional abominations? Check. A bunch of eggs for some reason? Check. Machine that goes "ping"? Check and check.</q>',900000,[28,26]);Game.last.pool='prestige';Game.last.parents=['Persistent memory','Permanent upgrade slot IV'];
+		new Game.Upgrade('Inspired checklist','Unlocks the <b>Buy all</b> feature, which lets you instantly purchase every upgrade in your store (starting from the cheapest one).<br>Also unlocks the <b>Vault</b>, a store section where you can place upgrades you do not wish to auto-buy.<q>Snazzy grandma accessories? Check. Transdimensional abominations? Check. A bunch of eggs for some reason? Check. Machine that goes "ping"? Check and check.</q>',900000,[28,26]);Game.last.pool='prestige';Game.last.parents=['Persistent memory','Permanent upgrade slot II'];
 		
 		order=10300;
-		Game.NewUpgradeCookie({name:'Pure pitch-black chocolate butter biscuit',desc:'Rewarded for owning 500 of everything.<br>This chocolate is so pure and so flawless that it has no color of its own, instead taking on the appearance of whatever is around it. You\'re a bit surprised to notice that this one isn\'t stamped with your effigy, as its surface is perfectly smooth (to the picometer) - until you realize it\'s quite literally reflecting your own face like a mirror.',icon:[24,27],power:	10,price: 999999999999999999999999999999999999999999999,locked:1});
+		Game.NewUpgradeCookie({name:'Pure pitch-black chocolate butter biscuit',desc:'Rewarded for owning 500 of everything.<br>This chocolate is so pure and so flawless that it has no color of its own, instead taking on the appearance of whatever is around it. You\'re a bit surprised to notice that this one isn\'t stamped with your effigy, as its surface is perfectly smooth (to the picometer) - until you realize it\'s quite literally reflecting your own face like a mirror.',icon:[24,27],power:	10,price: 999999999999999999999999999999999999999999999*butterBiscuitMult,locked:1});
 		
 		order=10020;
 		Game.NewUpgradeCookie({name:'Chocolate oatmeal cookies',desc:'These bad boys compensate for lack of a cohesive form and a lumpy, unsightly appearance by being just simply delicious. Something we should all aspire to.',icon:[23,28],power:						4,price: 99999999999999999999999999999999999*5});
 		Game.NewUpgradeCookie({name:'Molasses cookies',desc:'Sticky, crackly, and dusted in fine sugar.<br>Some lunatics have been known to eat these with potatoes.',icon:[24,28],power:						4,price: 999999999999999999999999999999999999});
 		Game.NewUpgradeCookie({name:'Biscotti',desc:'Almonds and pistachios make these very robust cookies slightly more interesting to eat than to bludgeon people with.',icon:[22,28],power:						4,price: 999999999999999999999999999999999999*5});
-		Game.NewUpgradeCookie({name:'Waffle cookies',desc:'Whether these are cookies with shocklingly waffle-like features or simply regular cookie-sized waffles is a debate we\'re not getting into here.',icon:[21,28],power:						4,price: 9999999999999999999999999999999999999});
+		Game.NewUpgradeCookie({name:'Waffle cookies',desc:'Whether these are cookies with shockingly waffle-like features or simply regular cookie-sized waffles is a debate we\'re not getting into here.',icon:[21,28],power:						4,price: 9999999999999999999999999999999999999});
 		
 		
 		order=10000;
@@ -9275,7 +9875,7 @@ Game.Launch=function()
 		
 		
 		order=200;new Game.TieredUpgrade('Good manners','Grandmas are <b>twice</b> as efficient.<q>Apparently these ladies are much more amiable if you take the time to learn their strange, ancient customs, which seem to involve saying "please" and "thank you" and staring at the sun with bulging eyes while muttering eldritch curses under your breath.</q>','Grandma',11);
-		order=300;new Game.TieredUpgrade('Lindworms','Farms are <b>twice</b> as efficient.<q>You have to import these from far up north, but they really help areate the soil!</q>','Farm',11);
+		order=300;new Game.TieredUpgrade('Lindworms','Farms are <b>twice</b> as efficient.<q>You have to import these from far up north, but they really help aerate the soil!</q>','Farm',11);
 		order=400;new Game.TieredUpgrade('Bore again','Mines are <b>twice</b> as efficient.<q>After extracting so much sediment for so long, you\'ve formed some veritable mountains of your own from the accumulated piles of rock and dirt. Time to dig through those and see if you find anything fun!</q>','Mine',11);
 		order=500;new Game.TieredUpgrade('"Volunteer" interns','Factories are <b>twice</b> as efficient.<q>If you\'re bad at something, always do it for free.</q>','Factory',11);
 		order=525;new Game.TieredUpgrade('Rules of acquisition','Banks are <b>twice</b> as efficient.<q>Rule 387 : a cookie baked is a cookie kept.</q>','Bank',11);
@@ -9319,7 +9919,7 @@ Game.Launch=function()
 		//Game.SynergyUpgrade('Compounded odds','<q>When probabilities start cascading, "never in a billion lifetimes" starts looking terribly like "probably before Monday comes around".</q>','Fractal engine','Chancemaker','synergy1');
 		Game.SynergyUpgrade('Mice clicking mice','','Fractal engine','Cursor','synergy2');
 		Game.last.descFunc=function(){
-			Math.seedrandom(Game.seed+'-blacsphemouse');
+			Math.seedrandom(Game.seed+'-blasphemouse');
 			if (Math.random()<0.3) {Math.seedrandom();return this.desc+'<q>Absolutely blasphemouse!</q>';}
 			else {Math.seedrandom();return this.desc+'<q>Absolutely blasphemous!</q>';}
 		};
@@ -9406,7 +10006,7 @@ Game.Launch=function()
 			if (!Game.Has('Shimmering veil [off]') && Game.Has('Shimmering veil [on]')) return false;
 			if (Game.Has('Reinforced membrane'))
 			{
-				if (context=='shimmer') Math.seedrandom(Game.seed+'/'+Game.goldenClicks);
+				if (context=='shimmer') Math.seedrandom(Game.seed+'/'+(Game.goldenClicks+Game.reindeerClicked));
 				else if (context=='click') Math.seedrandom(Game.seed+'/'+Game.cookieClicks);
 				if (Math.random()<0.1)
 				{
@@ -9463,6 +10063,234 @@ Game.Launch=function()
 		
 		new Game.Upgrade('Cosmic beginner\'s luck','Prior to purchasing the <b>Heavenly chip secret</b> upgrade in a run, random drops are <b>5 times more common</b>.<q>Oh! A penny!<br>Oh! A priceless heirloom!<br>Oh! Another penny!</q>',999999999*15,[8,10]);Game.last.pool='prestige';Game.last.parents=['Shimmering veil'];
 		new Game.Upgrade('Reinforced membrane','The <b>shimmering veil</b> is more resistant, and has a <b>10% chance</b> not to break. It also gives <b>+10%</b> more CpS.<q>A consistency between jellyfish and cling wrap.</q>',999999999*15,[7,10]);Game.last.pool='prestige';Game.last.parents=['Shimmering veil'];
+		
+		
+		order=255;
+		Game.GrandmaSynergy('Binary grandmas','A digital grandma to transfer more cookies.<br>(See also : boolean grandmas, string grandmas, and not-a-number grandmas, also known as "NaNs".)','Javascript console');
+		
+		order=1400;
+		new Game.TieredUpgrade('The JavaScript console for dummies','Javascript consoles are <b>twice</b> as efficient.<q>This should get you started. The first line reads: "To open the javascript console, press-"<br>...the rest of the book is soaked in chocolate milk. If only there was a way to look up this sort of information...</q>','Javascript console',1);
+		new Game.TieredUpgrade('64bit arrays','Javascript consoles are <b>twice</b> as efficient.<q>A long-form variable type to pack your cookies much more efficiently.</q>','Javascript console',2);
+		new Game.TieredUpgrade('Stack overflow','Javascript consoles are <b>twice</b> as efficient.<q>This is really bad! You probably forgot to close a loop somewhere and now your programs are going crazy! The rest of your engineers seem really excited about it somehow. How could a software mishap like a stack overflow possibly ever help anyone?</q>','Javascript console',3);
+		new Game.TieredUpgrade('Enterprise compiler','Javascript consoles are <b>twice</b> as efficient.<q>This bespoke javascript compiler took your team years of development and billions in research, but it should let you execute (certain) functions (up to) 2% faster (in optimal circumstances).</q>','Javascript console',4);
+		new Game.TieredUpgrade('Syntactic sugar','Javascript consoles are <b>twice</b> as efficient.<q>Tastier code for tastier cookies.</q>','Javascript console',5);
+		new Game.TieredUpgrade('A nice cup of coffee','Javascript consoles are <b>twice</b> as efficient.<q>All this nerd stuff has you exhausted. You make yourself a nice cup of coffee, brewed with roasted beans from some far-away island. You may have been working a bit too hard though - the cup of coffee starts talking to you, insisting that it is NOT javascript.</q>','Javascript console',6);
+		new Game.TieredUpgrade('Just-in-time baking','Javascript consoles are <b>twice</b> as efficient.<q>A new method of preparing cookies; they bake themselves right in front of the customers before eating, leaving your kitchens mess-free.</q>','Javascript console',7);
+		new Game.TieredUpgrade('cookies++','Javascript consoles are <b>twice</b> as efficient.<q>Your very own cookie-themed programming language, elegantly named after its most interesting ability - increasing the "cookies" variable by 1.</q>','Javascript console',8);
+		new Game.TieredUpgrade('Software updates','Javascript consoles are <b>twice</b> as efficient.<q>This is grand news - someone\'s finally figured out the Wifi password, and your newfound internet connection seems to have triggered a whole lot of software updates! Your browsers, drivers and plugins all received a fresh coat of paint, and your javascript version has been updated to the latest ECMAScript specification. It\'s really too bad thousands had to die due to some deprecated function in your neurotoxin ventilation code, but I guess that\'s progress for you.</q>','Javascript console',9);
+		new Game.TieredUpgrade('Game.Loop','Javascript consoles are <b>twice</b> as efficient.<q>You\'re not quite sure what to make of this. What does it mean? What does it do? Who would leave something like that just laying around here? Try asking again in 1/30th of a second.</q>','Javascript console',10);
+		new Game.TieredUpgrade('eval()','Javascript consoles are <b>twice</b> as efficient.<q>It is said that this simple function holds the key to the universe, and that whosoever masters it may shape reality to their will.<br>Good thing you have no idea how it works. Makes for a neat plaque on your wall, though.</q>','Javascript console',11);
+		
+		order=5000;
+		Game.SynergyUpgrade('Script grannies','<q>Armies of energy drink-fueled grandmas ready to hack into the cyberspace for renegade e-cookies.</q>','Javascript console','Grandma','synergy1');
+		Game.SynergyUpgrade('Tombola computing','','Javascript console','Chancemaker','synergy2');
+		Game.last.descFunc=function(){
+			Math.seedrandom(Game.seed+'-tombolacomputing');
+			var str='(Your ticket reads '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)+' '+Math.floor(Math.random()*100)+', entitling you to '+choose([Math.floor(Math.random()*5+2)+' lines of javascript','one free use of Math.random()','one qubit, whatever that is','one half-eaten cookie','a brand new vacuum cleaner','most of one room-temperature cup of orange soda','one really good sandwich','one handful of pocket lint','someone\'s mostly clean hairpiece','a trip to a fancy restaurant','the knowledge of those numbers','a furtive glance at the news ticker','another ticket, half-price','all-you-can-eat moldy bread','one lifetime supply of oxygen','the color '+choose['red','orange','yellow','green','blue','purple','black','white','gray','brown','pink','teal'],'increased intellect for a limited time','an ancient runesword','the throne of a far-away country','the position of Mafia capo. Good luck','one free time-travel week-end','something beautiful','the deed to some oil well','one hamburger made out of the animal, plant, or person of your choice','the last surviving '+choose['dodo bird','thylacine','unicorn','dinosaur','neanderthal'],'a deep feeling of accomplishment','a fleeting tinge of entertainment','a vague sense of unease','deep existential dread','one extra week added to your lifespan','breathe manually','blink right here and now','one meeting with any famous person, living or dead, in your next dream','one very nice dream','a wacky sound effect','45 seconds of moral flexibility','hundreds and thousands, also known as "sprinkles"','one circle, triangle, square or other simple geometric shape, of average dimensions','just this extra bit of randomness','the extra push you needed to turn your life around','a good fright','one secret superpower','a better luck next time','an irrational phobia of tombola tickets','one whole spider','an increased sense of self-worth and determination','inner peace','one double-XP week-end in the MMORPG of your choice','a little piece of the universe, represented by the trillions of atoms that make up this very ticket','food poisoning','the Moon! Well, conceptually','a new car, baby','a new catchphrase','an intrusive thought of your choice','- ...aw man, it just cuts off there','the director spot for the next big hit movie','really good-looking calves','one genuine pirate golden doubloon','"treasure and riches", or something','one boat, sunken','baby shoes, never worn','direct lineage to some King or Queen','innate knowledge of a dead language you\'ll never encounter','the melody of a song you don\'t know the words to','white noise','mild physical impairment','a new pair of lips','things, and such','one popular expression bearing your name','one typo','one get-out-of-jail-free card','the rest of your life... for now','one polite huff','a condescending stare','one cursed monkey paw','true love, probably','an interesting factoid about the animal, country, TV show or celebrity of your choice','a pop culture reference','minutes of fun','the etymology of the word "tombola" - it\'s Italian for "a tumble"','nothing. You lost, sorry'])+'.)';
+			Math.seedrandom();
+			return this.desc+'<q>Like quantum computing, but more fun.<br>'+str+'</q>';
+		};
+		
+		order=10020;
+		Game.NewUpgradeCookie({name:'Kruidnoten',desc:'A festive dutch favorite; tiny cinnamony bites sometimes coated in chocolate. The name translates roughly to "kruidnoten".',icon:[30,3],power:						5,price: getCookiePrice(22)});
+		Game.NewUpgradeCookie({name:'Marie biscuits',desc:'Pleasantly round, smoothly buttery, subtly vanilla-flavored, ornately embossed, each ridge represents a person Marie killed in prison.',icon:[30,4],power:						5,price: getCookiePrice(23)});
+		Game.NewUpgradeCookie({name:'Meringue cookies',desc:'Probably the most exciting thing you can make out of egg whites. Also called forgotten cookies, due to the recipe being once lost in a sealed mystical vault for 10,000 years.',icon:[31,4],power:						5,price: getCookiePrice(24)});
+		
+		order=10060;
+		Game.NewUpgradeCookie({name:'Pizza',desc:'What is a pizza if not a large, chewy cookie, frosted with a rather exuberant tomato & cheese icing? Not a cookie, that\'s what.',icon:[31,9],require:'Box of not cookies',		power:5,price: Math.pow(10,44)});
+		
+		order=10050;
+		Game.NewUpgradeCookie({name:'Crackers',desc:'These are the non-flavored kind with no salt added. Really just a judgement-free wheat square begging to have bits of ham and spreadable cheese piled onto it, its main contribution being "crunchy".',icon:[30,9],require:'Box of maybe cookies',		power:4,price: Math.pow(10,45)});
+		
+		order=10030;
+		Game.NewUpgradeCookie({name:'Havabreaks',desc:'You can snap the sections neatly or just bite into the whole thing like some kind of lunatic. Some oversea countries manufacture these in hundreds of unique flavors, such as green tea, lobster bisque, and dark chocolate.',icon:[31,3],require:'Box of brand biscuits',power:												2,	price:	999999999999999999999999999*5});
+		
+		order=20000;
+		new Game.Upgrade('Kitten executives','You gain <b>more CpS</b> the more milk you have.<q>ready to execute whatever and whoever you\'d like, sir</q>',900000000000000000000000000000000000000000000,Game.GetIcon('Kitten',13));Game.last.kitten=1;Game.MakeTiered(Game.last,13,18);
+		
+		
+		order=10020;
+		Game.NewUpgradeCookie({name:'Chai tea cookies',desc:'Not exactly Captain Picard\'s favorite, but I mean, these will do in a pinch.',icon:[23,32],power:						5,price: getCookiePrice(4)+5});Game.last.order=10020.5685;
+		
+		Game.NewUpgradeCookie({name:'Yogurt cookies',desc:'Augmented by the wonders of dairy, these cookies are light and fluffy and just one more thing for the lactose-intolerant to avoid.<br>Truly for the cultured among us.',icon:[24,32],power:						5,price: getCookiePrice(25)});
+		Game.NewUpgradeCookie({name:'Thumbprint cookies',desc:'Filled with jam and sometimes served in little paper cups. No longer admissible as biometric evidence in court. We\'re not having a repeat of that whole mess.',icon:[25,32],power:						5,price: getCookiePrice(26)});
+		Game.NewUpgradeCookie({name:'Pizzelle',desc:'Thin, crisp waffle cookies baked in a bespoke iron following an ancient Italian recipe.<br>These cookies have been around for a long, long time.<br>These cookies have seen things.',icon:[26,32],power:						5,price: getCookiePrice(27)});
+		
+		order=10030;
+		Game.NewUpgradeCookie({name:'Zilla wafers',desc:'Popular vanilla-flavored biscuits that somehow keep ending up in banana pudding.<br>Themed after a beloved radioactive prehistoric monster, for some reason.',icon:[22,32],require:'Box of brand biscuits',power:												2,	price:	999999999999999999999999999999*5});
+		Game.NewUpgradeCookie({name:'Dim Dams',desc:'Two biscuits joined by chocolate and coated in even more chocolate.<br>You wonder - which one is the dim, and which one is the dam?',icon:[31,10],require:'Box of brand biscuits',power:												2,	price:	999999999999999999999999999999999*5});
+		
+		order=10060;
+		Game.NewUpgradeCookie({name:'Candy',desc:'There are two pillars to the world of sweets : pastries, of course - and candy.<br>You could make a whole new game just about these, but for now, please enjoy these assorted generic treats.',icon:[30,10],require:'Box of not cookies',		power:5,price: Math.pow(10,46)});
+		
+		
+		order=19000;
+		new Game.TieredUpgrade('Fortune #001','Cursors are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Fingers are not the only thing you can count on.</q>','Cursor','fortune');
+		new Game.TieredUpgrade('Fortune #002','Grandmas are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>A wrinkle is a crack in a mundane facade.</q>','Grandma','fortune');
+		new Game.TieredUpgrade('Fortune #003','Farms are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>The seeds of tomorrow already lie within the seeds of today.</q>','Farm','fortune');
+		new Game.TieredUpgrade('Fortune #004','Mines are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Riches from deep under elevate you all the same.</q>','Mine','fortune');
+		new Game.TieredUpgrade('Fortune #005','Factories are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>True worth is not in what you find, but in what you make.</q>','Factory','fortune');
+		new Game.TieredUpgrade('Fortune #006','Banks are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>The value of money means nothing to a pocket.</q>','Bank','fortune');
+		new Game.TieredUpgrade('Fortune #007','Temples are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Not all guides deserve worship.</q>','Temple','fortune');
+		new Game.TieredUpgrade('Fortune #008','Wizard towers are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Magic is about two things - showmanship, and rabbits.</q>','Wizard tower','fortune');
+		new Game.TieredUpgrade('Fortune #009','Shipments are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Every mile travelled expands the mind by just as much.</q>','Shipment','fortune');
+		new Game.TieredUpgrade('Fortune #010','Alchemy labs are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Don\'t get used to yourself. You\'re gonna have to change.</q>','Alchemy lab','fortune');
+		new Game.TieredUpgrade('Fortune #011','Portals are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Every doorway is a gamble. Tread with care.</q>','Portal','fortune');
+		new Game.TieredUpgrade('Fortune #012','Time machines are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Do your future self a favor; they\'ll thank you for it.</q>','Time machine','fortune');
+		new Game.TieredUpgrade('Fortune #013','Antimatter condensers are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>The world is made of what we put into it.</q>','Antimatter condenser','fortune');
+		new Game.TieredUpgrade('Fortune #014','Prisms are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Staring at a dazzling light can blind you back to darkness.</q>','Prism','fortune');
+		new Game.TieredUpgrade('Fortune #015','Chancemakers are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>Don\'t leave to blind chance what you could accomplish with deaf skill.</q>','Chancemaker','fortune');
+		new Game.TieredUpgrade('Fortune #016','Fractal engines are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>It\'s good to see yourself in others. Remember to see yourself in yourself, too.</q>','Fractal engine','fortune');
+		new Game.TieredUpgrade('Fortune #017','Javascript consoles are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>If things aren\'t working out for you, rewrite the rules.</q>','Javascript console','fortune');
+		
+		
+		order=19100;
+		//note : price for these capped to base price OR 1 day of unbuffed CpS
+		new Game.Upgrade('Fortune #100','Upgrades and buildings cost <b>-1%</b>; you gain <b>+1%</b> CpS.<q>True wealth is counted in gifts.</q>',
+		Game.Tiers['fortune'].price*100000,[0,0]);Game.MakeTiered(Game.last,'fortune',10);
+		Game.last.priceFunc=function(me){return Math.min(me.basePrice,Game.unbuffedCps*60*60*24);}
+		new Game.Upgrade('Fortune #101','You gain <b>+7%</b> CpS.<q>Some people dream of fortunes; others dream of cookies.</q>',Game.Tiers['fortune'].price*100000000,[0,0]);Game.MakeTiered(Game.last,'fortune',10);
+		Game.last.priceFunc=function(me){return Math.min(me.basePrice,Game.unbuffedCps*60*60*24);}
+		new Game.Upgrade('Fortune #102','You gain <b>+1%</b> of your regular CpS while the game is closed <small>(provided you have the Twin Gates of Transcendence heavenly upgrade)</small>.<q>Help, I\'m trapped in a browser game!</q>',Game.Tiers['fortune'].price*100000000000,[0,0]);Game.MakeTiered(Game.last,'fortune',10);
+		Game.last.priceFunc=function(me){return Math.min(me.basePrice,Game.unbuffedCps*60*60*24);}
+		new Game.Upgrade('Fortune #103','You gain <b>more CpS</b> the more milk you have.<q>Don\'t believe the superstitions; all cats are good luck.</q>',Game.Tiers['fortune'].price*100000000000000,[0,0]);Game.MakeTiered(Game.last,'fortune',18);Game.last.kitten=1;
+		Game.last.priceFunc=function(me){return Math.min(me.basePrice,Game.unbuffedCps*60*60*24);}
+		new Game.Upgrade('Fortune #104','Clicking gains <b>+1% of your CpS</b>.<q>Remember to stay in touch.</q>',Game.Tiers['fortune'].price*100000000000,[0,0]);Game.MakeTiered(Game.last,'fortune',11);
+		Game.last.priceFunc=function(me){return Math.min(me.basePrice,Game.unbuffedCps*60*60*24);}
+		
+		new Game.Upgrade('Fortune cookies','The news ticker may occasionally have <b>fortunes</b>, which may be clicked for something good.<q>These don\'t taste all that great but that\'s not really the point, is it?</q>',77777777777,[29,8]);Game.last.pool='prestige';Game.last.parents=['Distilled essence of redoubled luck'];
+		
+		
+		order=40000;
+		new Game.Upgrade('A really good guide book','<b>???</b><q>??????</q>',7,[22,12]);//debug purposes only
+		//new Game.Upgrade('A really good guide book','<b>All dungeon locations behave as if unlocked.</b><br><b>You may shift-click a dungeon location to teleport there.</b><q>It even tells you which hotels to avoid!</q>',7,[22,12]);//debug purposes only
+		Game.last.buyFunction=function(){if (Game.Objects['Factory'].minigameLoaded){Game.Objects['Factory'].minigame.computeMapBounds();Game.Objects['Factory'].minigame.updateLocStyles();}}
+		Game.last.pool='debug';
+		
+		order=10300;
+		Game.NewUpgradeCookie({name:'Prism heart biscuits',desc:'An every-flavor biscuit that stands for universal love and being true to yourself.',require:'Eternal heart biscuits',season:'valentines',icon:[30,8],							power:heartPower,price: 1000000000000000000000000});Game.last.order=10300.175;
+		
+		order=19100;
+		new Game.Upgrade('Kitten wages','Through clever accounting, this actually makes kitten upgrades <b>10% cheaper</b>.<q>Cats can have little a salary, as a treat.<br>Cats are expert hagglers and have a keen sense of bargaining, especially in the case of cash.</q>',9000000000,[31,8]);Game.last.pool='prestige';Game.last.parents=['Kitten angels'];Game.last.kitten=1;
+		new Game.Upgrade('Pet the dragon','Unlocks the ability to <b>pet your dragon</b> by clicking on it once hatched.<q>Dragons do not purr. If your dragon starts purring, vacate the area immediately.</q>',99999999999,[30,12]);Game.last.pool='prestige';Game.last.parents=['How to bake your dragon','Residual luck'];
+		
+		order=25100;
+		var dragonDropUpgradeCost=function(me){return Game.unbuffedCps*60*30*((Game.dragonLevel<Game.dragonLevels.length-1)?1:0.1);};
+		new Game.Upgrade('Dragon scale','Cookie production multiplier <b>+3%</b>.<br>Cost scales with CpS, but 10 times cheaper with a fully-trained dragon.<q>Your dragon sheds these regularly, so this one probably won\'t be missed.<br>Note: icon not to scale.</q>',999,[30,14]);Game.last.priceFunc=dragonDropUpgradeCost;
+		new Game.Upgrade('Dragon claw','Clicks are <b>+3% more powerful</b>.<br>Cost scales with CpS, but 10 times cheaper with a fully-trained dragon.<q>Will grow back in a few days\' time.<br>A six-inch retractable claw, like a razor, from the middle toe. So you know, try to show a little respect.</q>',999,[31,14]);Game.last.priceFunc=dragonDropUpgradeCost;
+		new Game.Upgrade('Dragon fang','<b>+3%</b> golden cookie gains.<br>Dragon harvest and Dragonflight are <b>10% stronger</b>.<br>Cost scales with CpS, but 10 times cheaper with a fully-trained dragon.<q>Just a fallen baby tooth your dragon wanted you to have, as a gift.<br>It might be smaller than an adult tooth, but it\'s still frighteningly sharp - and displays some awe-inspiring cavities, which you might expect from a creature made out of sweets.</q>',999,[30,15]);Game.last.priceFunc=dragonDropUpgradeCost;
+		new Game.Upgrade('Dragon teddy bear','<b>+3%</b> random drops.<br>Cost scales with CpS, but 10 times cheaper with a fully-trained dragon.<q>Your dragon used to sleep with this, but it\'s yours now.<br>Crafted in the likelihood of a fearsome beast. Stuffed with magical herbs picked long ago by a wandering wizard. Woven from elven yarn and a polyester blend.</q>',999,[31,15]);Game.last.priceFunc=dragonDropUpgradeCost;
+		
+		order=10020;
+		Game.NewUpgradeCookie({name:'Granola cookies',desc:'Wait! These are just oatmeal cookies mixed with raisin cookies! What next, half-dark chocolate half-white chocolate cookies?',icon:[28,32],power:						5,price: getCookiePrice(28)});
+		Game.NewUpgradeCookie({name:'Ricotta cookies',desc:'Light and cake-like. Often flavored with lemon or almond extract. Sprinkles optional. Allegedly Italian. Investigation pending.',icon:[29,32],power:						5,price: getCookiePrice(29)});
+		Game.NewUpgradeCookie({name:'Roze koeken',desc:'The icing on these Dutch cookies is traditionally pink, but different colors may be used for special occasions - such as pink to celebrate Breast Cancer Awareness Month, or for International Flamingo Day, pink.',icon:[30,32],power:						5,price: getCookiePrice(30)});
+		Game.NewUpgradeCookie({name:'Peanut butter cup cookies',desc:'What more poignant example of modern societal struggles than the brazen reclaiming of a corporate product by integrating it in the vastly more authentic shell of a homemade undertaking? Anyway this is a peanut butter cup, baked into a cookie. It\'s pretty good!',icon:[31,32],power:						5,price: getCookiePrice(31)});
+		Game.NewUpgradeCookie({name:'Sesame cookies',desc:'Look at all the little seeds on these! It\'s like someone dropped them on the street or something! A very welcoming and educational street!',icon:[22,33],power:						5,price: getCookiePrice(32)});
+		Game.NewUpgradeCookie({name:'Taiyaki',desc:'A pastry fish filled with red bean paste, doomed to live an existence of constant and excruciating pain as its aquatic environment slowly dissolves its soft doughy body.<br>Also comes in chocolate flavor!',icon:[23,33],power:						5,price: getCookiePrice(33)});
+		Game.NewUpgradeCookie({name:'Vanillekipferl',desc:'Nut-based cookies from Central Europe, coated in powdered vanilla sugar. Regular kipferl, crescent-shaped bread rolls from the same region, are much less exciting.',icon:[24,33],power:						5,price: getCookiePrice(34)});
+		
+		order=10300;
+		Game.NewUpgradeCookie({name:'Cosmic chocolate butter biscuit',desc:'Rewarded for owning 550 of everything.<br>Through some strange trick of magic or technology, looking at this cookie is like peering into a deep ocean of ancient stars. The origins of this biscuit are unknown; its manufacture, as far as your best investigators can tell, left no paper trail. From a certain angle, if you squint hard enough, you\'ll notice that a number of stars near the center are arranged to resemble the outline of your own face.',icon:[27,32],power:	10,price: 999999999999999999999999999999999999999999999999*butterBiscuitMult,locked:1});
+		
+		order=100;new Game.Upgrade('Nonillion fingers','Multiplies the gain from Thousand fingers by <b>20</b>.<q>Only for the freakiest handshakes.</q>',10000000000000000000000000,[12,31]);Game.MakeTiered(Game.last,13,0);
+		order=150;new Game.Upgrade('Miraculite mouse','Clicking gains <b>+1% of your CpS</b>.<q>Composed of a material that neither science nor philosophy are equipped to conceptualize. And boy, does it ever click.</q>',50000000000000000000000000000,[11,31]);Game.MakeTiered(Game.last,13,11);
+		order=200;new Game.TieredUpgrade('Generation degeneration','Grandmas are <b>twice</b> as efficient.<q>Genetic testing shows that most of your grandmas are infected with a strange degenerative disease that only seems to further their powers; the more time passes, the older they get. This should concern you.</q>','Grandma',12);
+		order=300;new Game.TieredUpgrade('Global seed vault','Farms are <b>twice</b> as efficient.<q>An enormous genetic repository that could outlive an apocalypse. Guarantees the survival of your empire, or at the very least its agricultural components, should civilization fall. Which should be any day now.</q>','Farm',12);
+		order=400;new Game.TieredUpgrade('Air mining','Mines are <b>twice</b> as efficient.<q>You\'ve dug your drills through just about every solid surface you could find. But did you know recent advances have revealed untold riches hiding within non-solid surfaces too?</q>','Mine',12);
+		order=500;new Game.TieredUpgrade('Behavioral reframing','Factories are <b>twice</b> as efficient.<q>Through careful social engineering you\'ve convinced your workers that "union" is a slur that only the most vile and repugnant filth among us would ever dare utter! Sometimes progress isn\'t in the big machines, it\'s in the little lies!</q>','Factory',12);
+		order=525;new Game.TieredUpgrade('Altruistic loop','Banks are <b>twice</b> as efficient.<q>You control so many branches of the global economy and legislative bodies that, through a particularly creative loophole, donating money (to yourself) grants you even more cash in tax deductions than you started with!</q>','Bank',12);
+		order=550;new Game.TieredUpgrade('A novel idea','Temples are <b>twice</b> as efficient.<q>You don\'t get rich starting a religion. If you want to get rich, you write science fiction.</q>','Temple',12);
+		order=575;new Game.TieredUpgrade('Spelling bees','Wizard towers are <b>twice</b> as efficient.<q>You\'ve unleashed a swarm of magically-enhanced bees upon mankind! Their stinging spells may be the bane of all living things but you\'re certain you can put their delicious, purple, fizzy honey to good use!</q>','Wizard tower',12);
+		order=600;new Game.TieredUpgrade('Toroid universe','Shipments are <b>twice</b> as efficient.<q>If you think of the universe as an nth-dimensional torus that wraps back on itself in every direction, you can save a fortune on rocket fuel! Of course the universe isn\'t actually shaped like that, but you\'ve never let details stand in your way.</q>','Shipment',12);
+		order=700;new Game.TieredUpgrade('Hermetic reconciliation','Alchemy labs are <b>twice</b> as efficient.<q>It\'s time for modern science and the mystical domains of the occult to work together at last. What do gravitons transmute into? What if alkahest is pH-neutral? Should a homunculus have the right to vote? And other exciting questions coming to you soon, whether you like it or not.</q>','Alchemy lab',12);
+		order=800;new Game.TieredUpgrade('His advent','Portals are <b>twice</b> as efficient.<q>He comes! He comes at last! Just like the prophecies foretold! And as He steps out of the portal, your engineers begin slicing Him into convenient chunks before transporting His writhing cosmic flesh to your factories, where He will be processed and converted into a new and exciting cookie flavor, available in stores tomorrow.</q>','Portal',12);
+		order=900;new Game.TieredUpgrade('Split seconds','Time machines are <b>twice</b> as efficient.<q>Time is infinite, yes... But what if, nestled within each second, were even more infinities? Every moment an eternity! Think of how many scheduling troubles this solves!</q>','Time machine',12);
+		order=1000;new Game.TieredUpgrade('Flavor itself','Antimatter condensers are <b>twice</b> as efficient.<q>Deep under the earth, in the most sterile laboratory, in the most vast and expensive particle accelerator ever devised, your scientists have synthesized -for a fraction of a second- the physical manifestation of pure flavor. Highly unstable, and gone in a puff of radioactive energy, it nonetheless left your team shivering with awe... and hunger.</q>','Antimatter condenser',12);
+		order=1100;new Game.TieredUpgrade('Light speed limit','Prisms are <b>twice</b> as efficient.<q>Whoah, slow down. Harvesting light is well and good but it\'d be much easier if it weren\'t so dang fast! This should thankfully take care of that.</q>','Prism',12);
+		order=1200;new Game.TieredUpgrade('A touch of determinism','Chancemakers are <b>twice</b> as efficient.<q>By knowing the exact position and movement of every particle in the universe, you\'re able to predict everything that can ever happen, leaving nothing to chance. This was a doozy to pull off mind you, but it\'s helped you win 50 bucks at the horse races so you could say it\'s already paying off.</q>','Chancemaker',12);
+		order=1300;new Game.TieredUpgrade('This upgrade','Fractal engines are <b>twice</b> as efficient.<q>This upgrade\'s flavor text likes to refer to itself, as well as to the fact that it likes to refer to itself. You should really buy this upgrade before it starts doing anything more obnoxious.</q>','Fractal engine',12);
+		order=1400;new Game.TieredUpgrade('Your biggest fans','Javascript consoles are <b>twice</b> as efficient.<q>Let\'s face it, baking cookies isn\'t the most optimized thing there is. So you\'ve purchased your biggest fans yet and stuck them next to your computers to keep things chill and in working order. Cool!</q>','Javascript console',12);
+		
+		
+		order=10020;
+		Game.NewUpgradeCookie({name:'Battenberg biscuits',desc:'Inspired by a cake of the same name, itself named after a prince of the same name. You suppose you could play a really, really short game of chess on these.',icon:[28,33],power:						5,price: getCookiePrice(35)});
+		Game.NewUpgradeCookie({name:'Rosette cookies',desc:'Intricate fried pastries from Northern Europe, made using specialized irons and dipped in icing sugar. While usually eaten as a delicious treat, these are often also used as Christmas tree decorations, or worn elegantly on one\'s lapel to symbolize the nah I\'m just messing with you.',icon:[26,33],power:						5,price: getCookiePrice(36)});
+		Game.NewUpgradeCookie({name:'Gangmakers',desc:'The little bit of raspberry jam at its center is crucial; a plain butter cookie with chocolate topping does not a gangmaker make.',icon:[27,33],power:						5,price: getCookiePrice(37)});
+		Game.NewUpgradeCookie({name:'Welsh cookies',desc:'Welsh cookies, also known as Welsh cakes, bakestones, griddle cakes, griddle scones, or pics, or in Welsh: <i>picau ar y maen, pice bach, cacennau cri</i> or <i>teisennau gradell</i>, are rich currant-filled scone-like biscuits of uncertain origin.',icon:[29,33],power:						5,price: getCookiePrice(38)});
+		Game.NewUpgradeCookie({name:'Raspberry cheesecake cookies',desc:'The humble raspberry cheesecake, now in ascended cookie form. Researchers posit that raspberry cheesecake cookies are evidence that the final form of every baked good, through convergent evolution, approaches that of a cookie, in a process known as cookienisation.',icon:[25,33],power:						5,price: getCookiePrice(39)});
+		
+		
+		
+		order=255;
+		Game.GrandmaSynergy('Alternate grandmas','A different grandma to bake something else.','Idleverse');
+		
+		order=1500;
+		new Game.TieredUpgrade('Manifest destiny','Idleverses are <b>twice</b> as efficient.<q>While the ethics of ransacking parallel universes for their riches may seem questionable to some, you\'ve reasoned that bringing the good word of your cookie empire to the unwashed confines of other realities is your moral duty, nay, your righteous imperative, and must be undertaken as soon as possible, lest they do it to you first!</q>','Idleverse',1);
+		new Game.TieredUpgrade('The multiverse in a nutshell','Idleverses are <b>twice</b> as efficient.<q>The structure of the metacosmos may seem confusing and at times even contradictory, but here\'s what you\'ve gathered so far:<br><br><div style="text-align:left;">&bull; each reality, or "idleverse", exists in parallel to all others<br><br>&bull; most realities seem to converge towards the production of a sole type of item (ours evidently being, thanks to you, cookies)<br><br>&bull; each reality is riddled with chaotic tunnels to a number of subordinate dimensions (such as the so-called "cookieverse"), much like swiss cheese<br><br>&bull; all realities bathe in an infinite liquid of peculiar properties, colloquially known as "milk"</div><br>Finally, each reality may have its own interpretation of the concept of "reality", for added fun.</q>','Idleverse',2);
+		new Game.TieredUpgrade('All-conversion','Idleverses are <b>twice</b> as efficient.<q>It\'s quite nice that you can rewire the logic of each universe to generate cookies instead, but you still end up with parsec-loads of whatever they were producing before - baubles you\'ve long made obsolete: cash money, gems, cheeseburgers, puppies... That\'s why you\'ve designed the universal converter, compatible with any substance and capable of turning those useless spoils of conquest into the reassuring crumbly rustle of even more cookies.</q>','Idleverse',3);
+		new Game.TieredUpgrade('Multiverse agents','Idleverses are <b>twice</b> as efficient.<q>You can send undercover spies to infiltrate each universe and have them signal you whether it\'s worth overtaking. Once the assimilation process started, they will also help pacify the local populations, having established trust through the use of wacky, but seamless, disguises.</q>','Idleverse',4);
+		new Game.TieredUpgrade('Escape plan','Idleverses are <b>twice</b> as efficient.<q>You\'ve set an idleverse aside and terraformed it to closely resemble this one in case something goes horribly wrong in here. Of course, the denizens of that idleverse also have their own escape idleverse to abscond to in the eventuality of your arrival, itself likely having its own contingency idleverse, and so on.</q>','Idleverse',5);
+		new Game.TieredUpgrade('Game design','Idleverses are <b>twice</b> as efficient.<q>Each idleverse functions according to some form of transcendental programming, that much is a given. But they also seem to be governed by much more subtle rules, the logic of which, when harnessed, may give you unparalleled dominion over the multiverse. Rewrite the rules! A game designer is you!</q>','Idleverse',6);
+		new Game.TieredUpgrade('Sandbox universes','Idleverses are <b>twice</b> as efficient.<q>It doesn\'t seem like you\'ll run out of extra universes anytime soon so why not repurpose some of them as consequence-free testing grounds for all your more existentially threatening market research? (...consequence-free for you, anyway.)</q>','Idleverse',7);
+		new Game.TieredUpgrade('Multiverse wars','Idleverses are <b>twice</b> as efficient.<q>Hmm, looks like some other universes wised up to your plundering. Thankfully, that\'s nothing your extra beefed-up metacosmic military budget can\'t handle!</q>','Idleverse',8);
+		new Game.TieredUpgrade('Mobile ports','Idleverses are <b>twice</b> as efficient.<q>Accessing each outer universe is a bit of a hassle, requiring the once-in-a-blue-moon alignment of natural cosmic ports to transit from universe to universe. You\'ve finally perfected the method of constructing your own self-propelled ports, which can travel near-instantaneously along universal perimeters to permit headache-free multiverse connections. Took you long enough.</q>','Idleverse',9);
+		new Game.TieredUpgrade('Encapsulated realities','Idleverses are <b>twice</b> as efficient.<q>Untold feats of science went into the reduction of infinite universes into these small, glimmering, easy-to-store little spheres. Exercise infinite caution when handling these, for each of them, containing endless galaxies and supporting endless life, is more precious than you can ever fathom. They\'ve also proven to be quite a smash hit in your warehouses on bowling night.</q>','Idleverse',10);
+		new Game.TieredUpgrade('Extrinsic clicking','Idleverses are <b>twice</b> as efficient.<q>If you poke an idleverse, it seems like it gets work done faster. It\'s also quite fun hearing a trillion terrified voices screaming in unison.</q>','Idleverse',11);
+		new Game.TieredUpgrade('Universal idling','Idleverses are <b>twice</b> as efficient.<q>The nature of idleverses is found in waiting. The more you wait on an idleverse, the more exponentially potent it becomes - which saves you a whole lot of hard work. In a true act of zen, you\'ve taken to biding your time when collecting new universes, letting them ripen like a fine wine.</q>','Idleverse',12);
+		
+		order=5000;
+		Game.SynergyUpgrade('Perforated mille-feuille cosmos','<q>Imagine, if you will, layers upon layers upon layers. Now picture billions of worms chewing their way through it all. This roughly, but not quite, approximates the geometry of the most basal stratum of our natural world.</q>','Idleverse','Portal','synergy1');
+		Game.SynergyUpgrade('Infraverses and superverses','<q>Universes within universes? How subversive!</q>','Idleverse','Fractal engine','synergy2');
+		
+		order=19000;
+		new Game.TieredUpgrade('Fortune #018','Idleverses are <b>7%</b> more efficient and <b>7%</b> cheaper.<q>There\'s plenty of everyone, but only one of you.</q>','Idleverse','fortune');
+		
+		order=10300;
+		Game.NewUpgradeCookie({name:'Butter biscuit (with butter)',desc:'Rewarded for owning 600 of everything.<br>This is a plain butter biscuit. It\'s got some butter on it. The butter doesn\'t look like anything in particular.',icon:[30,33],power:	10,price: 999999999999999999999999999999999999999999999999999*butterBiscuitMult,locked:1});
+		
+		
+		order=200;new Game.TieredUpgrade('Visits','Grandmas are <b>twice</b> as efficient.<q>In an extensive double-blind study (sample size: 12 millions), your researchers have found evidence that grandmas are up to twice as productive if you just come by and say hi once in a while. It\'s nice to check up on your grans! (Do not under any circumstances ingest any tea or tea-like substances the grandmas may offer you.)</q>','Grandma',13);
+		order=300;new Game.TieredUpgrade('Reverse-veganism','Farms are <b>twice</b> as efficient.<q>Plants aren\'t for eating, plants are for exploitative agriculture and astronomical profit margins!</q>','Farm',13);
+		order=400;new Game.TieredUpgrade('Caramel alloys','Mines are <b>twice</b> as efficient.<q>Your geologists have isolated a family of once-overlooked sugary ores that, when combined, may be turned into even more cookie ingredients. Your millions of miles of previously useless tunnels probably house insane amounts of the stuff!</q>','Mine',13);
+		order=500;new Game.TieredUpgrade('The infinity engine','Factories are <b>twice</b> as efficient.<q>In this house, I guess we don\'t care much for the laws of thermodynamics.</q>','Factory',13);
+		order=525;new Game.TieredUpgrade('Diminishing tax returns','Banks are <b>twice</b> as efficient.<q>Wow, they\'re tiny! Wish you\'d thought of that sooner!</q>','Bank',13);
+		order=550;new Game.TieredUpgrade('Apparitions','Temples are <b>twice</b> as efficient.<q>You\'ve booked a deal with the higher-ups that schedules one weekly earthly apparition by a deity, angel, ascended prophet, or other holy figure. This should boost interest in cookie religion among youths as long as you can secure a decent time slot.</q>','Temple',13);
+		order=575;new Game.TieredUpgrade('Wizard basements','Wizard towers are <b>twice</b> as efficient.<q>You\'ve received construction permits allowing you to build basements underneath each wizard tower. This provides a handy storage space for precious reagents, fizzled-out soul gems, and weird old magazines.</q>','Wizard tower',13);
+		order=600;new Game.TieredUpgrade('Prime directive','Shipments are <b>twice</b> as efficient.<q>An intergalactic delegation made you pinky-swear not to directly interact with lesser alien cultures. Which is fine, because it\'s much funnier to rob a planet blind when its inhabitants have no idea what\'s going on.</q>','Shipment',13);
+		order=700;new Game.TieredUpgrade('Chromatic cycling','Alchemy labs are <b>twice</b> as efficient.<q>All states of matter exist in a continuous loop. Having learned how to cycle through them, all you have to do is to freeze matter right on the state you need. For reference, the cookie state of matter is situated at precisely 163.719&deg;, right between lamellar gas and metaplasma.</q>','Alchemy lab',13);
+		order=800;new Game.TieredUpgrade('Domestic rifts','Portals are <b>twice</b> as efficient.<q>You\'ve managed to manufacture portals that are convenient enough, and legally safe enough, that you can just stick them against walls inside buildings to connect rooms together in unusual configurations. In practice, this means your employees get to have much shorter bathroom breaks.</q>','Portal',13);
+		order=900;new Game.TieredUpgrade('Patience abolished','Time machines are <b>twice</b> as efficient.<q>You wait for no one.</q>','Time machine',13);
+		order=1000;new Game.TieredUpgrade('Delicious pull','Antimatter condensers are <b>twice</b> as efficient.<q>In addition to the 4 fundamental forces of the universe -gravity, electromagnetism, weak and strong interactions- your scientists have at long last confirmed the existence of a fifth one, mediated by sugar bosons; it dictates that any two masses of ingredient-like matter will, given enough time, eventually meet each other to produce a third, even tastier substance. Your team enthusiastically names it the delicious pull.</q>','Antimatter condenser',13);
+		order=1100;new Game.TieredUpgrade('Occam\'s laser','Prisms are <b>twice</b> as efficient.<q>Invented by Franciscan friar William of Occam in 1<span></span>327. An impossibly clever use of light theory with a billion possible applications, some of which frightfully destructive. Confined to a single goat-skin parchment for hundreds of years until the patent expired and hit public domain, just now.</q>','Prism',13);
+		order=1200;new Game.TieredUpgrade('On a streak','Chancemakers are <b>twice</b> as efficient.<q>Take a moment to appreciate how far you\'ve come. How lucky you\'ve been so far. It doesn\'t take a genius statistician to extrapolate a trend from this. There\'s no way anything bad could happen to you now. Right?</q>','Chancemaker',13);
+		order=1300;new Game.TieredUpgrade('A box','Fractal engines are <b>twice</b> as efficient.<q>What\'s in that box? Why, it\'s a tiny replica of your office! And there\'s even a little you in there! And what\'s on the little desk... say - that\'s an even tinier box! And the little you is opening it, revealing an even tinier office! And in the tinier office there\'s- Hmm. You can think of a couple uses for this.</q>','Fractal engine',13);
+		order=1400;new Game.TieredUpgrade('Hacker shades','Javascript consoles are <b>twice</b> as efficient.<q>I\'m in.</q>','Javascript console',13);
+		order=1500;new Game.TieredUpgrade('Break the fifth wall','Idleverses are <b>twice</b> as efficient.<q>Huh, was that always there? Whatever it was, it\'s gone now. And what was behind is yours for the taking.</q>','Idleverse',13);
+		
+		
+		new Game.Upgrade('Cat ladies','Each kitten upgrade boosts grandma CpS by <b>29%</b>.<q>Oh no. Oh no no no. Ohhh this isn\'t right at all.</q>',9000000000,[32,3]);Game.last.pool='prestige';Game.last.parents=['Kitten angels'];
+		new Game.Upgrade('Milkhelp&reg; lactose intolerance relief tablets','Each rank of milk boosts grandma CpS by <b>5%</b>.<q>Aged like milk.</q>',900000000000,[33,3]);Game.last.pool='prestige';Game.last.parents=['Cat ladies'];
+		
+		new Game.Upgrade('Aura gloves','Cursor levels boost clicks by <b>5%</b> each (up to cursor level 10).<q>Try not to high-five anyone wearing these. You don\'t want that mess on your hands.</q>',555555555,[32,4]);Game.last.pool='prestige';Game.last.parents=['Halo gloves'];
+		new Game.Upgrade('Luminous gloves','<b>Aura gloves</b> are now effective up to cursor level 20.<q>These help power your clicks to absurd levels, but they\'re also quite handy when you want to light up the darkness on your way back from Glove World.</q>',55555555555,[33,4]);Game.last.pool='prestige';Game.last.parents=['Aura gloves'];
+		
+		order=10020;
+		Game.NewUpgradeCookie({name:'Bokkenpootjes',desc:'Consist of 2 meringue halves joined by buttercream and dipped both ways in chocolate. Named after a goat\'s foot that probably stepped in something twice.',icon:[32,8],power:						5,price: getCookiePrice(40)});
+		Game.NewUpgradeCookie({name:'Fat rascals',desc:'Almond-smiled Yorkshire cakes with a rich history and an even richer recipe. The more diet-conscious are invited to try the lean version, skinny scallywags.',icon:[33,8],power:						5,price: getCookiePrice(41)});
+		Game.NewUpgradeCookie({name:'Ischler cookies',desc:'Originating in the Austro-Hungarian Empire, these have spread throughout every country in eastern Europe and spawned just as many recipes, each claiming to be the original. The basis remains unchanged across all variants: two biscuits sandwiched around chocolate buttercream. Or was it jam?',icon:[32,9],power:						5,price: getCookiePrice(42)});
+		Game.NewUpgradeCookie({name:'Matcha cookies',desc:'Green tea and cookies, a matcha made in heaven.',icon:[33,9],power:						5,price: getCookiePrice(42)});
+		
+		order=10032;
+		Game.NewUpgradeCookie({name:'Earl Grey macarons',desc:'Best served hot, make it so!',icon:[32,10],require:'Box of macarons',							power:3,price: 9999999999999999999999999999});
+		
+		order=10030;
+		Game.NewUpgradeCookie({name:'Pokey',desc:'While commonly thought to be named so because it\'s fun to poke your classmates with these, Pokey-brand biscuit sticks actually get their name from their popularity in smoke-free prisons, where they\'re commonly smuggled and traded in lieu of cigarettes.',icon:[33,10],require:'Box of brand biscuits',power:												2,	price:	999999999999999999999999999999999999*5});
+		
+		order=10000;
+		Game.NewUpgradeCookie({name:'Cashew cookies',desc:'Let me tell you about cashews. Cashews are not nuts, but seeds that grow out of curious red or yellow fruits - which can be eaten on their own, or made into drinks. The shell around the nut itself contains a nasty substance that stains and irritates the hands of whoever handles it for too long. But that\'s okay, since now that you\'ve read this you\'ll make sure it doesn\'t get in the cookies! Oh, you\'ve already eaten how many? Okay then.',icon:[32,7],power:							2,	price:	99999999});
+		order=10001;
+		Game.NewUpgradeCookie({name:'Milk chocolate cookies',desc:'A strange inversion of chocolate milk. For those who are a little bit too hardcore for white chocolate, but not hardcore enough for dark.',icon:[33,7],power:2,	price:	99999999*5});
 		
 		//end of upgrades
 		
@@ -9610,11 +10438,12 @@ Game.Launch=function()
 			if (me.order>=200 && me.order<2000 && !me.tier && me.name.indexOf('grandma')==-1 && me.pool!='prestige') console.log(me.name+' has no tier.');
 		}
 		
-		Game.UpgradesByPool=[];
+		Game.UpgradesByPool={'kitten':[]};
 		for (var i in Game.Upgrades)
 		{
 			if (!Game.UpgradesByPool[Game.Upgrades[i].pool]) Game.UpgradesByPool[Game.Upgrades[i].pool]=[];
 			Game.UpgradesByPool[Game.Upgrades[i].pool].push(Game.Upgrades[i]);
+			if (Game.Upgrades[i].kitten) Game.UpgradesByPool['kitten'].push(Game.Upgrades[i]);
 		}
 		
 		Game.PrestigeUpgrades=[];
@@ -9626,8 +10455,7 @@ Game.Launch=function()
 				Game.Upgrades[i].posX=0;
 				Game.Upgrades[i].posY=0;
 				if (Game.Upgrades[i].parents.length==0 && Game.Upgrades[i].name!='Legacy') Game.Upgrades[i].parents=['Legacy'];
-				Game.Upgrades[i].parents=Game.Upgrades[i].parents||[-1];
-				for (var ii in Game.Upgrades[i].parents) {if (Game.Upgrades[i].parents[ii]!=-1) Game.Upgrades[i].parents[ii]=Game.Upgrades[Game.Upgrades[i].parents[ii]];}
+				for (var ii in Game.Upgrades[i].parents) {Game.Upgrades[i].parents[ii]=Game.Upgrades[Game.Upgrades[i].parents[ii]];}
 			}
 		}
 		
@@ -9638,6 +10466,7 @@ Game.Launch=function()
 		{
 			var me=Game.Upgrades[i];
 			if ((me.pool=='cookie' || me.pseudoCookie)) Game.cookieUpgrades.push(me);
+			if (me.tier) Game.Tiers[me.tier].upgrades.push(me);
 		}
 		for (var i in Game.UnlockAt){Game.Upgrades[Game.UnlockAt[i].name].unlockAt=Game.UnlockAt[i];}
 		for (var i in Game.Upgrades){if (Game.Upgrades[i].pool=='prestige') Game.Upgrades[i].order=Game.Upgrades[i].id;}
@@ -9645,7 +10474,7 @@ Game.Launch=function()
 		/*var oldPrestigePrices={"Chimera":5764801,"Synergies Vol. I":2525,"Synergies Vol. II":252525,"Label printer":9999};
 		for (var i in oldPrestigePrices){Game.Upgrades[i].basePrice=oldPrestigePrices[i];}*/
 		
-		Game.UpgradePositions={141:[176,-66],181:[-555,-93],253:[-272,-231],254:[-99,-294],255:[-193,-279],264:[48,123],265:[133,154],266:[223,166],267:[305,137],268:[382,85],269:[-640,42],270:[-607,-246],271:[-728,-120],272:[-688,-201],273:[-711,-33],274:[270,-328],275:[317,-439],276:[333,-556],277:[334,-676],278:[333,-796],279:[328,-922],280:[303,-1040],281:[194,-230],282:[-265,212],283:[-321,297],284:[-322,406],285:[-243,501],286:[-403,501],287:[-314,606],288:[-312,-374],289:[-375,-502],290:[-206,-476],291:[453,-745],292:[-375,-651],293:[-399,-794],323:[-86,120],325:[192,-1127],326:[-328,-158],327:[-192,290],328:[-3,237],329:[92,376],353:[121,-326],354:[77,-436],355:[64,-548],356:[57,-673],357:[52,-793],358:[58,-924],359:[82,-1043],360:[-188,408],362:[158,289],363:[-30,-30],364:[-232,-730],365:[-77,349],368:[-82,-532],393:[196,-714],394:[197,-964],395:[-143,-140],396:[-264,-889],397:[-69,563],408:[-204,-1036],409:[-72,-1152],410:[-70,-1328],411:[-388,137],412:[-470,253],413:[-482,389],449:[-367,-1113],450:[-334,-1214],451:[-278,-1303],495:[-402,-966],496:[200,49],505:[-545,-570],520:[-279,-8],537:[-937,-149],539:[-508,-1270],540:[-629,-1291],541:[-594,-1186],542:[-548,-1374],561:[300,-17],562:[52,646],591:[154,744],592:[180,608],};
+		Game.UpgradePositions={141:[176,-66],181:[-555,-93],253:[-272,-231],254:[-99,-294],255:[-193,-279],264:[48,123],265:[133,154],266:[223,166],267:[305,137],268:[382,85],269:[-640,42],270:[-614,-268],271:[-728,-120],272:[-688,-205],273:[-711,-31],274:[270,-328],275:[317,-439],276:[333,-556],277:[334,-676],278:[333,-796],279:[328,-922],280:[303,-1040],281:[194,-230],282:[-265,212],283:[-321,297],284:[-322,406],285:[-243,501],286:[-403,501],287:[-314,606],288:[-312,-374],289:[-375,-502],290:[-165,-413],291:[453,-745],292:[-375,-651],293:[-399,-794],323:[-78,109],325:[192,-1127],326:[-328,-158],327:[-192,290],328:[-3,237],329:[92,376],353:[121,-326],354:[77,-436],355:[64,-548],356:[57,-673],357:[52,-793],358:[58,-924],359:[82,-1043],360:[-188,408],362:[158,289],363:[-30,-30],364:[-232,-730],365:[-77,349],368:[-55,-455],393:[196,-714],394:[197,-964],395:[-143,-140],396:[-264,-889],397:[-69,563],408:[-204,-1036],409:[-72,-1152],410:[-70,-1328],411:[-388,137],412:[-470,253],413:[-482,389],449:[-367,-1113],450:[-334,-1214],451:[-278,-1303],495:[-402,-966],496:[200,49],505:[-545,-570],520:[-279,-8],537:[-907,-131],539:[-508,-1270],540:[-629,-1291],541:[-594,-1186],542:[-548,-1374],561:[300,-17],562:[52,646],591:[154,744],592:[180,608],643:[-121,710],646:[457,-906],647:[-122,205],717:[589,-772],718:[622,-649],719:[-215,-526],720:[-96,-575],};
 		
 		for (var i in Game.UpgradePositions) {Game.UpgradesById[i].posX=Game.UpgradePositions[i][0];Game.UpgradesById[i].posY=Game.UpgradePositions[i][1];}
 		
@@ -9753,29 +10582,29 @@ Game.Launch=function()
 			if (tier==2) {icon[1]=23;n+=7;}
 			else if (tier==3) {icon[1]=24;n+=14;}
 			var pow=Math.pow(10,n);
-			var achiev=new Game.Achievement(name,'Make <b>'+Beautify(pow)+'</b> cookies just from '+building.plural+'.'+(q?'<q>'+q+'</q>':''),icon);
+			var achiev=new Game.Achievement(name,'Make <b>'+toFixed(pow)+'</b> cookies just from '+building.plural+'.'+(q?'<q>'+q+'</q>':''),icon);
 			building.productionAchievs.push({pow:pow,achiev:achiev});
 			return achiev;
 		}
 		
-		Game.thresholdIcons=[0,1,2,3,4,5,6,7,8,9,10,11,18,19,20,21,22,23,24,25,26,27,28,29,21,22,23,24,25,26,27,28,29,30];
+		Game.thresholdIcons=[0,1,2,3,4,5,6,7,8,9,10,11,18,19,20,21,22,23,24,25,26,27,28,29,21,22,23,24,25,26,27,28,29,21,22,23,24,25,26,27,28,29];
 		Game.BankAchievements=[];
-		Game.BankAchievement=function(name)
+		Game.BankAchievement=function(name,q)
 		{
 			var threshold=Math.pow(10,Math.floor(Game.BankAchievements.length*1.5+2));
 			if (Game.BankAchievements.length==0) threshold=1;
-			var achiev=new Game.Achievement(name,'Bake <b>'+Beautify(threshold)+'</b> cookie'+(threshold==1?'':'s')+' in one ascension.',[Game.thresholdIcons[Game.BankAchievements.length],(Game.BankAchievements.length>23?2:5)]);
+			var achiev=new Game.Achievement(name,'Bake <b>'+toFixed(threshold)+'</b> cookie'+(threshold==1?'':'s')+' in one ascension.'+(q?('<q>'+q+'</q>'):''),[Game.thresholdIcons[Game.BankAchievements.length],(Game.BankAchievements.length>32?1:Game.BankAchievements.length>23?2:5)]);
 			achiev.threshold=threshold;
 			achiev.order=100+Game.BankAchievements.length*0.01;
 			Game.BankAchievements.push(achiev);
 			return achiev;
 		}
 		Game.CpsAchievements=[];
-		Game.CpsAchievement=function(name)
+		Game.CpsAchievement=function(name,q)
 		{
 			var threshold=Math.pow(10,Math.floor(Game.CpsAchievements.length*1.2));
 			//if (Game.CpsAchievements.length==0) threshold=1;
-			var achiev=new Game.Achievement(name,'Bake <b>'+Beautify(threshold)+'</b> cookie'+(threshold==1?'':'s')+' per second.',[Game.thresholdIcons[Game.CpsAchievements.length],(Game.CpsAchievements.length>23?2:5)]);
+			var achiev=new Game.Achievement(name,'Bake <b>'+toFixed(threshold)+'</b> cookie'+(threshold==1?'':'s')+' per second.'+(q?('<q>'+q+'</q>'):''),[Game.thresholdIcons[Game.CpsAchievements.length],(Game.CpsAchievements.length>32?1:Game.CpsAchievements.length>23?2:5)]);
 			achiev.threshold=threshold;
 			achiev.order=200+Game.CpsAchievements.length*0.01;
 			Game.CpsAchievements.push(achiev);
@@ -9842,7 +10671,7 @@ Game.Launch=function()
 		Game.TieredAchievement('Retirement home','Have <b>100</b> grandmas.','Grandma',3);
 		
 		order=1200;
-		Game.TieredAchievement('My first farm','Have <b>1</b> farm.','Farm',1);
+		Game.TieredAchievement('Bought the farm','Have <b>1</b> farm.','Farm',1);
 		Game.TieredAchievement('Reap what you sow','Have <b>50</b> farms.','Farm',2);
 		Game.TieredAchievement('Farm ill','Have <b>100</b> farms.','Farm',3);
 		
@@ -10180,25 +11009,25 @@ Game.Launch=function()
 		
 		Game.BankAchievement('How?');
 		Game.BankAchievement('The land of milk and cookies');
-		Game.BankAchievement('He who controls the cookies controls the universe');Game.last.baseDesc+='<q>The milk must flow!</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.BankAchievement('He who controls the cookies controls the universe','The milk must flow!');
 		Game.BankAchievement('Tonight on Hoarders');
 		Game.BankAchievement('Are you gonna eat all that?');
 		Game.BankAchievement('We\'re gonna need a bigger bakery');
-		Game.BankAchievement('In the mouth of madness');Game.last.baseDesc+='<q>A cookie is just what we tell each other it is.</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.BankAchievement('In the mouth of madness','A cookie is just what we tell each other it is.');
 		Game.BankAchievement('Brought to you by the letter <div style="display:inline-block;background:url(img/money.png);width:16px;height:16px;"></div>');
 	
 	
 		Game.CpsAchievement('A world filled with cookies');
 		Game.CpsAchievement('When this baby hits '+Beautify(10000000000000*60*60)+' cookies per hour');
 		Game.CpsAchievement('Fast and delicious');
-		Game.CpsAchievement('Cookiehertz : a really, really tasty hertz');Game.last.baseDesc+='<q>Tastier than a hertz donut, anyway.</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.CpsAchievement('Cookiehertz : a really, really tasty hertz','Tastier than a hertz donut, anyway.');
 		Game.CpsAchievement('Woops, you solved world hunger');
-		Game.CpsAchievement('Turbopuns');Game.last.baseDesc+='<q>Mother Nature will be like "slowwwww dowwwwwn".</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.CpsAchievement('Turbopuns','Mother Nature will be like "slowwwww dowwwwwn".');
 		Game.CpsAchievement('Faster menner');
 		Game.CpsAchievement('And yet you\'re still hungry');
 		Game.CpsAchievement('The Abakening');
 		Game.CpsAchievement('There\'s really no hard limit to how long these achievement names can be and to be quite honest I\'m rather curious to see how far we can go.<br>Adolphus W. Green (1844–1917) started as the Principal of the Groton School in 1864. By 1865, he became second assistant librarian at the New York Mercantile Library; from 1867 to 1869, he was promoted to full librarian. From 1869 to 1873, he worked for Evarts, Southmayd & Choate, a law firm co-founded by William M. Evarts, Charles Ferdinand Southmayd and Joseph Hodges Choate. He was admitted to the New York State Bar Association in 1873.<br>Anyway, how\'s your day been?');//Game.last.shortName='There\'s really no hard limit to how long these achievement names can be and to be quite honest I\'m [...]';
-		Game.CpsAchievement('Fast');Game.last.baseDesc+='<q>Wow!</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.CpsAchievement('Fast','Wow!');
 		
 		order=7002;
 		new Game.Achievement('Bicentennial and a half','Have at least <b>250 of everything</b>.<q>Keep on truckin\'.</q>',[9,6]);
@@ -10213,8 +11042,8 @@ Game.Launch=function()
 		order=1050;
 		new Game.Achievement('Thumbs, phalanges, metacarpals','Have <b>500</b> cursors.<q>& KNUCKLES</q>',[0,15]);
 		
-		order=6000;
-		new Game.Achievement('Polymath','Own <b>300</b> upgrades and <b>3000</b> buildings.<q>Excellence doesn\'t happen overnight - it usually takes a good couple days.</q>',[29,7]);
+		order=6002;
+		new Game.Achievement('Polymath','Own <b>300</b> upgrades and <b>4000</b> buildings.<q>Excellence doesn\'t happen overnight - it usually takes a good couple days.</q>',[29,7]);
 		
 		order=6005;
 		new Game.Achievement('The elder scrolls','Own a combined <b>777</b> grandmas and cursors.<q>Let me guess. Someone stole your cookie.</q>',[10,9]);
@@ -10257,10 +11086,10 @@ Game.Launch=function()
 		order=7002;
 		new Game.Achievement('Tricentennial','Have at least <b>300 of everything</b>.<q>Can\'t stop, won\'t stop. Probably should stop, though.</q>',[29,12]);
 		
-		Game.CpsAchievement('Knead for speed');Game.last.baseDesc+='<q>How did we not make that one yet?</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
-		Game.CpsAchievement('Well the cookies start coming and they don\'t stop coming');Game.last.baseDesc+='<q>Didn\'t make sense not to click for fun.</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.CpsAchievement('Knead for speed','How did we not make that one yet?');
+		Game.CpsAchievement('Well the cookies start coming and they don\'t stop coming','Didn\'t make sense not to click for fun.');
 		Game.CpsAchievement('I don\'t know if you\'ve noticed but all these icons are very slightly off-center');
-		Game.CpsAchievement('The proof of the cookie is in the baking');Game.last.baseDesc+='<q>How can you have any cookies if you don\'t bake your dough?</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
+		Game.CpsAchievement('The proof of the cookie is in the baking','How can you have any cookies if you don\'t bake your dough?');
 		Game.CpsAchievement('If it\'s worth doing, it\'s worth overdoing');
 		
 		Game.BankAchievement('The dreams in which I\'m baking are the best I\'ve ever had');
@@ -10433,7 +11262,7 @@ Game.Launch=function()
 		new Game.Achievement('Humble rebeginnings','Ascend with <b>1 duodecillion</b> cookies baked.<q>Started from the bottom, now we\'re here.</q>',[29,6]);
 		new Game.Achievement('The end of the world','Ascend with <b>1 tredecillion</b> cookies baked.<q>(as we know it)</q>',[21,25]);
 		new Game.Achievement('Oh, you\'re back','Ascend with <b>1 quattuordecillion</b> cookies baked.<q>Missed us?</q>',[21,25]);
-		new Game.Achievement('Lazarus','Ascend with <b>1 quindecillion</b> cookies baked.<q>Try, try again.</q>',[21,25]);
+		new Game.Achievement('Lazarus','Ascend with <b>1 quindecillion</b> cookies baked.<q>All rise.</q>',[21,25]);
 		
 		Game.CpsAchievement('Leisurely pace');
 		Game.CpsAchievement('Hypersonic');
@@ -10447,7 +11276,6 @@ Game.Launch=function()
 		new Game.Achievement('Quadricentennial and a half','Have at least <b>450 of everything</b>.<q>At this point, you might just be compensating for something.</q>',[23,26]);
 		
 		new Game.Achievement('Quincentennial','Have at least <b>500 of everything</b>.<q>Some people would say you\'re halfway there.<br>We do not care for those people and their reckless sense of unchecked optimism.</q>',[29,25]);
-		
 		
 		order=21100;
 		new Game.Achievement('Maillard reaction','Harvest a <b>caramelized sugar lump</b>.',[29,27]);
@@ -10497,22 +11325,167 @@ Game.Launch=function()
 		Game.CpsAchievement('Gotta go fast');
 		Game.BankAchievement('I think it\'s safe to say you\'ve got it made');
 		
-		order=6000;
-		new Game.Achievement('Renaissance baker','Own <b>400</b> upgrades and <b>4000</b> buildings.<q>If you have seen further, it is by standing on the shoulders of giants - a mysterious species of towering humanoids until now thought long-extinct.</q>',[10,10]);
+		order=6002;
+		new Game.Achievement('Renaissance baker','Own <b>400</b> upgrades and <b>8000</b> buildings.<q>If you have seen further, it is by standing on the shoulders of giants - a mysterious species of towering humanoids until now thought long-extinct.</q>',[10,10]);
 		
 		order=1150;
 		new Game.Achievement('Veteran','Own at least <b>14</b> grandma types.<q>14\'s a crowd!</q>',[10,9]);
 		
 		order=10000;
 		new Game.Achievement('Thick-skinned','Have your <b>reinforced membrane</b> protect the <b>shimmering veil</b>.',[7,10]);
+		
+		
+		order=2300;
+		Game.TieredAchievement('F12','Have <b>1</b> javascript console.','Javascript console',1);
+		Game.TieredAchievement('Variable success','Have <b>50</b> javascript consoles.','Javascript console',2);
+		Game.TieredAchievement('No comments','Have <b>100</b> javascript consoles.','Javascript console',3);
+		Game.TieredAchievement('Up to code','Have <b>150</b> javascript consoles.','Javascript console',4);
+		Game.TieredAchievement('Works on my machine','Have <b>200</b> javascript consoles.','Javascript console',5);
+		Game.TieredAchievement('Technical debt','Have <b>250</b> javascript consoles.','Javascript console',6);
+		Game.TieredAchievement('Mind your language','Have <b>300</b> javascript consoles.','Javascript console',7);
+		Game.TieredAchievement('Inconsolable','Have <b>350</b> javascript consoles.','Javascript console',8);
+		Game.TieredAchievement('Closure','Have <b>400</b> javascript consoles.','Javascript console',9);
+		Game.TieredAchievement('Dude what if we\'re all living in a simulation like what if we\'re all just code on a computer somewhere','Have <b>450</b> javascript consoles.','Javascript console',10);
+		Game.TieredAchievement('Taking the back streets','Have <b>500</b> javascript consoles.','Javascript console',11);
+		
+		order=2320;
+		Game.ProductionAchievement('Inherited prototype','Javascript console',1);
+		Game.ProductionAchievement('A model of document object','Javascript console',2);
+		Game.ProductionAchievement('First-class citizen','Javascript console',3);
+		
+		new Game.Achievement('Alexandria','Reach level <b>10</b> javascript consoles.',[32,26]);Game.Objects['Javascript console'].levelAchiev10=Game.last;
+		
+		Game.CpsAchievement('Bake him away, toys');
+		Game.CpsAchievement('You\'re #1 so why try harder');
+		Game.CpsAchievement('Haven\'t even begun to peak');
+		Game.BankAchievement('A sometimes food');
+		Game.BankAchievement('Not enough of a good thing');
+		Game.BankAchievement('Horn of plenty');
+		
+		order=30050;
+		new Game.Achievement('Smurf account','Ascend with <b>1 sexdecillion</b> cookies baked.<q>It\'s like you just appeared out of the blue!</q>',[21,32]);
+		new Game.Achievement('If at first you don\'t succeed','Ascend with <b>1 septendecillion</b> cookies baked.<q>If at first you don\'t succeed, try, try, try again.<br>But isn\'t that the definition of insanity?</q>',[21,32]);
+		
+		order=33000;
+		new Game.Achievement('O Fortuna','Own every <b>fortune upgrade</b>.<div class="line"></div>Owning this achievement makes fortunes appear <b>twice as often</b>; unlocked fortune upgrades also have a <b>40% chance</b> to carry over after ascending.',[29,8]);
+		
+		order=61615;
+		new Game.Achievement('Initial public offering','Make your first stock market profit.',[0,33]);
+		new Game.Achievement('Rookie numbers','Own at least <b>100</b> of every stock market good.<q>Gotta pump those numbers up!</q>',[9,33]);
+		new Game.Achievement('No nobility in poverty','Own at least <b>500</b> of every stock market good.<q>What kind of twisted individual is out there cramming camels through needle holes anyway?</q>',[10,33]);
+		new Game.Achievement('Full warehouses','Own at least <b>1,000</b> of a stock market good.',[11,33]);
+		new Game.Achievement('Make my day','Make <b>a day</b> of CpS ($86,400) in 1 stock market sale.',[1,33]);
+		new Game.Achievement('Buy buy buy','Spend <b>a day</b> of CpS ($86,400) in 1 stock market purchase.',[1,33]);
+		new Game.Achievement('Gaseous assets','Have your stock market profits surpass <b>a whole year</b> of CpS ($31,536,000).<q>Boy, how volatile!</q>',[18,33]);Game.last.pool='shadow';
+		new Game.Achievement('Pyramid scheme','Unlock the <b>highest-tier</b> stock market headquarters.',[18,33]);
+		
+		order=10000;
+		new Game.Achievement('Jellicles','Own <b>10</b> kitten upgrades.<q>Jellicles can and jellicles do! Make sure to wash your jellicles every day!</q>',[18,19]);
+		
+		order=7002;
+		new Game.Achievement('Quincentennial and a half','Have at least <b>550 of everything</b>.<q>This won\'t fill the churning void inside, you know.</q>',[29,26]);
+		
+		Game.CpsAchievement('What did we even eat before these');
+		Game.CpsAchievement('Heavy flow');
+		Game.CpsAchievement('More you say?');
+		Game.BankAchievement('Large and in charge');
+		Game.BankAchievement('Absolutely stuffed');
+		Game.BankAchievement('It\'s only wafer-thin','Just the one!');
+		
+		order=1000;new Game.Achievement('Clickety split','Make <b>1,000,000,000,000,000,000,000,000,000</b> cookies from clicking.',[11,31]);
+		order=1050;new Game.Achievement('Gotta hand it to you','Have <b>700</b> cursors.',[0,17]);
+		order=1100;Game.TieredAchievement('Okay boomer','Have <b>600</b> grandmas.','Grandma',13);
+		order=1200;Game.TieredAchievement('Overripe','Have <b>550</b> farms.','Farm',12);
+		order=1300;Game.TieredAchievement('Rock on','Have <b>550</b> mines.','Mine',12);
+		order=1400;Game.TieredAchievement('Self-manmade man','Have <b>550</b> factories.','Factory',12);
+		order=1425;Game.TieredAchievement('Checks out','Have <b>550</b> banks.','Bank',12);
+		order=1450;Game.TieredAchievement('Living on a prayer','Have <b>550</b> temples.','Temple',12);
+		order=1475;Game.TieredAchievement('Higitus figitus migitus mum','Have <b>550</b> wizard towers.','Wizard tower',12);
+		order=1500;Game.TieredAchievement('The incredible journey','Have <b>550</b> shipments.','Shipment',12);
+		order=1600;Game.TieredAchievement('Just a phase','Have <b>550</b> alchemy labs.','Alchemy lab',12);
+		order=1700;Game.TieredAchievement('Don\'t let me leave, Murph','Have <b>550</b> portals.','Portal',12);
+		order=1800;Game.TieredAchievement('Caveman to cosmos','Have <b>550</b> time machines.','Time machine',12);
+		order=1900;Game.TieredAchievement('Particular tastes','Have <b>550</b> antimatter condensers.','Antimatter condenser',12);
+		order=2000;Game.TieredAchievement('A light snack','Have <b>550</b> prisms.','Prism',12);
+		order=2100;Game.TieredAchievement('Tempting fate','Have <b>550</b> chancemakers.','Chancemaker',12);
+		order=2200;Game.TieredAchievement('Tautological','Have <b>550</b> fractal engines.','Fractal engine',12);
+		order=2300;Game.TieredAchievement('Curly braces','Have <b>550</b> javascript consoles.<q>Or as the French call them, mustache boxes.<br>Go well with quotes.</q>','Javascript console',12);
+		
+		order=10000;
+		new Game.Achievement('Seven horseshoes','Click <b>27777 golden cookies</b>.<q>Enough for one of those funky horses that graze near your factories.</q>',[21,33]);Game.last.pool='shadow';
+		
+		order=11000;
+		new Game.Achievement('Olden days','Find the <b>forgotten madeleine</b>.<q>DashNet Farms remembers.</q>',[12,3]);
+		
+		
+		order=1050;new Game.Achievement('The devil\'s workshop','Have <b>800</b> cursors.',[0,18]);
+		order=1200;Game.TieredAchievement('In the green','Have <b>600</b> farms.','Farm',13);
+		order=1300;Game.TieredAchievement('Mountain out of a molehill, but like in a good way','Have <b>600</b> mines.','Mine',13);
+		order=1400;Game.TieredAchievement('The wheels of progress','Have <b>600</b> factories.','Factory',13);
+		order=1425;Game.TieredAchievement('That\'s rich','Have <b>600</b> banks.','Bank',13);
+		order=1450;Game.TieredAchievement('Preaches and cream','Have <b>600</b> temples.','Temple',13);
+		order=1475;Game.TieredAchievement('Magic thinking','Have <b>600</b> wizard towers.','Wizard tower',13);
+		order=1500;Game.TieredAchievement('Is there life on Mars?','Have <b>600</b> shipments.<q>Yes, there is. You\'re currently using it as filling in experimental flavor prototype #810657.</q>','Shipment',13);
+		order=1600;Game.TieredAchievement('Bad chemistry','Have <b>600</b> alchemy labs.','Alchemy lab',13);
+		order=1700;Game.TieredAchievement('Reduced to gibbering heaps','Have <b>600</b> portals.','Portal',13);
+		order=1800;Game.TieredAchievement('Back already?','Have <b>600</b> time machines.','Time machine',13);
+		order=1900;Game.TieredAchievement('Nuclear throne','Have <b>600</b> antimatter condensers.','Antimatter condenser',13);
+		order=2000;Game.TieredAchievement('Making light of the situation','Have <b>600</b> prisms.','Prism',13);
+		order=2100;Game.TieredAchievement('Flip a cookie. Chips, I win. Crust, you lose.','Have <b>600</b> chancemakers.','Chancemaker',13);
+		order=2200;Game.TieredAchievement('In and of itself','Have <b>600</b> fractal engines.','Fractal engine',13);
+		order=2300;Game.TieredAchievement('Duck typing','Have <b>600</b> javascript consoles.<q>Hello, this is a duck typing. Got any grapes?</q>','Javascript console',13);
+		
+		order=2400;
+		Game.TieredAchievement('They\'ll never know what hit \'em','Have <b>1</b> idleverse.','Idleverse',1);
+		Game.TieredAchievement('Well-versed','Have <b>50</b> idleverses.','Idleverse',2);
+		Game.TieredAchievement('Ripe for the picking','Have <b>100</b> idleverses.','Idleverse',3);
+		Game.TieredAchievement('Unreal','Have <b>150</b> idleverses.','Idleverse',4);
+		Game.TieredAchievement('Once you\'ve seen one','Have <b>200</b> idleverses.','Idleverse',5);
+		Game.TieredAchievement('Spoils and plunder','Have <b>250</b> idleverses.','Idleverse',6);
+		Game.TieredAchievement('Nobody exists on purpose, nobody belongs anywhere','Have <b>300</b> idleverses.<q>Come watch TV?</q>','Idleverse',7);
+		Game.TieredAchievement('Hyperspace expressway','Have <b>350</b> idleverses.','Idleverse',8);
+		Game.TieredAchievement('Versatile','Have <b>400</b> idleverses.','Idleverse',9);
+		Game.TieredAchievement('You are inevitable','Have <b>450</b> idleverses.','Idleverse',10);
+		Game.TieredAchievement('Away from this place','Have <b>500</b> idleverses.','Idleverse',11);
+		Game.TieredAchievement('Everywhere at once','Have <b>550</b> idleverses.','Idleverse',12);
+		Game.TieredAchievement('Reject reality, substitute your own','Have <b>600</b> idleverses.','Idleverse',13);
+		
+		order=2420;
+		Game.ProductionAchievement('Fringe','Idleverse',1);
+		Game.ProductionAchievement('Coherence','Idleverse',2);
+		Game.ProductionAchievement('Earth-616','Idleverse',3);
+		
+		new Game.Achievement('Strange topologies','Reach level <b>10</b> idleverses.',[33,26]);Game.Objects['Idleverse'].levelAchiev10=Game.last;
+		
+		order=5000;
+		new Game.Achievement('Grand design','Own <b>4000</b> buildings.<q>They\'ll remember you forever!</q>',[32,12]);
+		new Game.Achievement('Ecumenopolis','Own <b>8000</b> buildings.<q>Getting a wee bit cramped.</q>',[33,12]);
+		
+		order=6000;
+		new Game.Achievement('The full picture','Purchase <b>300</b> upgrades.<q>So that\'s where that fits in!</q>',[32,11]);
+		new Game.Achievement('When there\'s nothing left to add','Purchase <b>400</b> upgrades.<q>...keep going.</q>',[33,11]);
+		
+		order=7002;
+		new Game.Achievement('Sexcentennial','Have at least <b>600 of everything</b>.<q>Hey, nice milestone!</q>',[31,33]);
+		
+		Game.CpsAchievement('Keep going until I say stop');
+		Game.CpsAchievement('But I didn\'t say stop, did I?');
+		Game.CpsAchievement('With unrivaled fervor');
+		Game.BankAchievement('Think big');
+		Game.BankAchievement('Hypersize me');
+		Game.BankAchievement('Max capacity');
+		
+		order=61616;
+		new Game.Achievement('Liquid assets','Have your stock market profits surpass <b>$10,000,000</b>.',[12,33]);
+		
 		//end of achievements
 		
 		/*=====================================================================================
 		BUFFS
 		=======================================================================================*/
 		
-		Game.buffs=[];//buffs currently in effect by name
-		Game.buffsN=0;
+		Game.buffs={};//buffs currently in effect by name
+		Game.buffsI=0;
 		Game.buffsL=l('buffs');
 		Game.gainBuff=function(type,time,arg1,arg2,arg3)
 		{
@@ -10544,7 +11517,7 @@ Game.Launch=function()
 				{buff[i]=obj[i];}
 				buff.maxTime=buff.time;
 				Game.buffs[buff.name]=buff;
-				buff.id=Game.buffsN;
+				buff.id=Game.buffsI;
 				
 				//create dom
 				Game.buffsL.innerHTML=Game.buffsL.innerHTML+'<div id="buff'+buff.id+'" class="crate enabled buff" '+(buff.desc?Game.getTooltip(
@@ -10553,7 +11526,7 @@ Game.Launch=function()
 				
 				buff.l=l('buff'+buff.id);
 				
-				Game.buffsN++;
+				Game.buffsI++;
 			}
 			Game.recalculateGains=1;
 			Game.storeToRefresh=1;
@@ -10593,7 +11566,7 @@ Game.Launch=function()
 		Game.killBuff=function(what)//remove a buff by name
 		{if (Game.buffs[what]){Game.buffs[what].time=0;/*Game.buffs[what]=0;*/}}
 		Game.killBuffs=function()//remove all buffs
-		{Game.buffsL.innerHTML='';Game.buffs=[];Game.recalculateGains=1;Game.storeToRefresh=1;}
+		{Game.buffsL.innerHTML='';Game.buffs={};Game.recalculateGains=1;Game.storeToRefresh=1;}
 		
 		
 		Game.buffTypes=[];//buff archetypes; only buffs declared from these can be saved and loaded
@@ -10665,6 +11638,7 @@ Game.Launch=function()
 		});
 		new Game.buffType('dragon harvest',function(time,pow)
 		{
+			if (Game.Has('Dragon fang')) pow=Math.ceil(pow*1.1);
 			return {
 				name:'Dragon Harvest',
 				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'!',
@@ -10714,6 +11688,7 @@ Game.Launch=function()
 		});
 		new Game.buffType('dragonflight',function(time,pow)
 		{
+			if (Game.Has('Dragon fang')) pow=Math.ceil(pow*1.1);
 			return {
 				name:'Dragonflight',
 				desc:'Clicking power x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'!',
@@ -10741,7 +11716,7 @@ Game.Launch=function()
 			var obj=Game.ObjectsById[building];
 			return {
 				name:Game.goldenCookieBuildingBuffs[obj.name][0],
-				desc:'Your '+obj.amount+' '+obj.plural+' are boosting your CpS!<br>Cookie production +'+(Math.ceil(pow*100-100))+'% for '+Game.sayTime(time*Game.fps,-1)+'!',
+				desc:'Your '+Beautify(obj.amount)+' '+obj.plural+' are boosting your CpS!<br>Cookie production +'+(Math.ceil(pow*100-100))+'% for '+Game.sayTime(time*Game.fps,-1)+'!',
 				icon:[obj.iconColumn,14],
 				time:time*Game.fps,
 				add:true,
@@ -10754,7 +11729,7 @@ Game.Launch=function()
 			var obj=Game.ObjectsById[building];
 			return {
 				name:Game.goldenCookieBuildingBuffs[obj.name][1],
-				desc:'Your '+obj.amount+' '+obj.plural+' are rusting your CpS!<br>Cookie production '+(Math.ceil(pow*100-100))+'% slower for '+Game.sayTime(time*Game.fps,-1)+'!',
+				desc:'Your '+Beautify(obj.amount)+' '+obj.plural+' are rusting your CpS!<br>Cookie production '+(Math.ceil(pow*100-100))+'% slower for '+Game.sayTime(time*Game.fps,-1)+'!',
 				icon:[obj.iconColumn,15],
 				time:time*Game.fps,
 				add:true,
@@ -10862,6 +11837,81 @@ Game.Launch=function()
 				aura:0
 			};
 		});
+		new Game.buffType('loan 1',function(time,pow)
+		{
+			return {
+				name:'Loan 1',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true,
+				onDie:function(){if (Game.takeLoan) {Game.takeLoan(1,true);}},
+			};
+		});
+		new Game.buffType('loan 1 interest',function(time,pow)
+		{
+			return {
+				name:'Loan 1 (interest)',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true
+			};
+		});
+		new Game.buffType('loan 2',function(time,pow)
+		{
+			return {
+				name:'Loan 2',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true,
+				onDie:function(){if (Game.takeLoan) {Game.takeLoan(2,true);}},
+			};
+		});
+		new Game.buffType('loan 2 interest',function(time,pow)
+		{
+			return {
+				name:'Loan 2 (interest)',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true
+			};
+		});
+		new Game.buffType('loan 3',function(time,pow)
+		{
+			return {
+				name:'Loan 3',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true,
+				onDie:function(){if (Game.takeLoan) {Game.takeLoan(3,true);}},
+			};
+		});
+		new Game.buffType('loan 3 interest',function(time,pow)
+		{
+			return {
+				name:'Loan 3 (interest)',
+				desc:'Cookie production x'+pow+' for '+Game.sayTime(time*Game.fps,-1)+'.',
+				icon:[1,33],
+				time:time*Game.fps,
+				power:pow,
+				multCpS:pow,
+				max:true
+			};
+		});
 		
 		//end of buffs
 		
@@ -10873,7 +11923,7 @@ Game.Launch=function()
 		Game.vanilla=0;//everything we create beyond this will not be saved in the default save
 		
 		
-		for (var i in Game.customCreate) {Game.customCreate[i]();}
+		Game.runModHook('create');
 		
 		
 		/*=====================================================================================
@@ -10949,7 +11999,7 @@ Game.Launch=function()
 		{
 			for (var i in Game.wrinklers)
 			{
-				Game.wrinklers[i]={id:parseInt(i),close:0,sucked:0,phase:0,x:0,y:0,r:0,hurt:0,hp:Game.wrinklerHP,type:0};
+				Game.wrinklers[i]={id:parseInt(i),close:0,sucked:0,phase:0,x:0,y:0,r:0,hurt:0,hp:Game.wrinklerHP,selected:0,type:0};
 			}
 		}
 		Game.CollectWrinklers=function()
@@ -11336,7 +12386,7 @@ Game.Launch=function()
 				var len=Game.specialTabs.length;
 				if (len==0) return;
 				var y=Game.LeftBackground.canvas.height-24-48*len;
-				for (var i in Game.specialTabs)
+				for (var i=0;i<Game.specialTabs.length;i++)
 				{
 					var selected=0;
 					if (Game.specialTab==Game.specialTabs[i]) selected=1;
@@ -11349,7 +12399,7 @@ Game.Launch=function()
 						Game.specialTabHovered=Game.specialTabs[i];
 						Game.mousePointer=1;
 						Game.CanClick=0;
-						if (Game.Click)
+						if (Game.Click && Game.lastClickedEl==l('backgroundLeftCanvas'))
 						{
 							if (Game.specialTab!=Game.specialTabs[i]) {Game.specialTab=Game.specialTabs[i];Game.ToggleSpecialMenu(1);PlaySound('snd/press.mp3');}
 							else {Game.ToggleSpecialMenu(0);PlaySound('snd/press.mp3');}
@@ -11365,7 +12415,6 @@ Game.Launch=function()
 		Game.santaLevels=['Festive test tube','Festive ornament','Festive wreath','Festive tree','Festive present','Festive elf fetus','Elf toddler','Elfling','Young elf','Bulky elf','Nick','Santa Claus','Elder Santa','True Santa','Final Claus'];
 		for (var i in Game.santaDrops)//scale christmas upgrade prices with santa level
 		{Game.Upgrades[Game.santaDrops[i]].priceFunc=function(){return Math.pow(3,Game.santaLevel)*2525;}}
-		
 		
 		Game.UpgradeSanta=function()
 		{
@@ -11488,6 +12537,14 @@ Game.Launch=function()
 				cost:function(){return Game.Objects['Fractal engine'].amount>=100;},
 				buy:function(){Game.Objects['Fractal engine'].sacrifice(100);},
 				costStr:function(){return '100 fractal engines';}},
+			{name:'Krumblor, cookie dragon',action:'Train Reality Bending<br><small>Aura : 10% of every other aura, combined</small>',pic:5,
+				cost:function(){return Game.Objects['Javascript console'].amount>=100;},
+				buy:function(){Game.Objects['Javascript console'].sacrifice(100);},
+				costStr:function(){return '100 javascript consoles';}},
+			{name:'Krumblor, cookie dragon',action:'Train Dragon Orbs<br><small>Aura : selling your best building may grant a wish</small>',pic:5,
+				cost:function(){return Game.Objects['Idleverse'].amount>=100;},
+				buy:function(){Game.Objects['Idleverse'].sacrifice(100);},
+				costStr:function(){return '100 idleverses';}},
 			{name:'Krumblor, cookie dragon',action:'Bake dragon cookie<br><small>Delicious!</small>',pic:6,
 				cost:function(){var fail=0;for (var i in Game.Objects){if (Game.Objects[i].amount<50) fail=1;}return (fail==0);},
 				buy:function(){for (var i in Game.Objects){Game.Objects[i].sacrifice(50);}Game.Unlock('Dragon cookie');},
@@ -11518,11 +12575,20 @@ Game.Launch=function()
 			15:{name:'Radiant Appetite',pic:[14,25],desc:'All cookie production <b>multiplied by 2</b>.'},
 			16:{name:'Dragon\'s Fortune',pic:[19,25],desc:'<b>+123% CpS</b> per golden cookie on-screen, multiplicative.'},
 			17:{name:'Dragon\'s Curve',pic:[20,25],desc:'<b>+5% sugar lump growth</b> and sugar lumps are <b>twice as likely</b> to be unusual.'},
+			18:{name:'Reality Bending',pic:[32,25],desc:'<b>One tenth</b> of every other dragon aura, <b>combined</b>.'},
+			19:{name:'Dragon Orbs',pic:[33,25],desc:'With no buffs and no golden cookies on screen, selling your most powerful building has <b>10% chance to summon one</b>.'},
 		};
 		
 		Game.hasAura=function(what)
 		{
 			if (Game.dragonAuras[Game.dragonAura].name==what || Game.dragonAuras[Game.dragonAura2].name==what) return true; else return false;
+		}
+		Game.auraMult=function(what)
+		{
+			var n=0;
+			if (Game.dragonAuras[Game.dragonAura].name==what || Game.dragonAuras[Game.dragonAura2].name==what) n=1;
+			if (Game.dragonAuras[Game.dragonAura].name=='Reality Bending' || Game.dragonAuras[Game.dragonAura2].name=='Reality Bending') n+=0.1;
+			return n;
 		}
 		
 		Game.SelectDragonAura=function(slot,update)
@@ -11587,6 +12653,37 @@ Game.Launch=function()
 			}
 		}
 		
+		Game.lastClickedSpecialPic=0;
+		Game.ClickSpecialPic=function()
+		{
+			if (Game.specialTab=='dragon' && Game.dragonLevel>=4 && Game.Has('Pet the dragon') && l('specialPic'))
+			{
+				triggerAnim(l('specialPic'),'pucker');
+				PlaySound('snd/click'+Math.floor(Math.random()*7+1)+'.mp3',0.5);
+				if (Date.now()-Game.lastClickedSpecialPic>2000) PlaySound('snd/growl.mp3');
+				//else if (Math.random()<0.5) PlaySound('snd/growl.mp3',0.5+Math.random()*0.2);
+				Game.lastClickedSpecialPic=Date.now();
+				if (Game.prefs.particles)
+				{
+					Game.particleAdd(Game.mouseX,Game.mouseY-32,Math.random()*4-2,Math.random()*-2-4,Math.random()*0.2+0.5,1,2,[20,3]);
+				}
+				if (Game.dragonLevel>=8 && Math.random()<1/20)
+				{
+					Math.seedrandom(Game.seed+'/dragonTime');
+					var drops=['Dragon scale','Dragon claw','Dragon fang','Dragon teddy bear'];
+					drops=shuffle(drops);
+					var drop=drops[Math.floor((new Date().getMinutes()/60)*drops.length)];
+					if (!Game.Has(drop) && !Game.HasUnlocked(drop))
+					{
+						Game.Unlock(drop);
+						if (Game.prefs.popups) Game.Popup('You find :<br>'+drop+'!');
+						else Game.Notify(drop,'<b>Your dragon dropped something!</b>',Game.Upgrades[drop].icon);
+					}
+					Math.seedrandom();
+				}
+			}
+		}
+		
 		Game.ToggleSpecialMenu=function(on)
 		{
 			if (on)
@@ -11597,14 +12694,14 @@ Game.Launch=function()
 				else if (Game.specialTab=='dragon') {pic='dragon.png?v='+Game.version;frame=Game.dragonLevels[Game.dragonLevel].pic;}
 				else {pic='dragon.png?v='+Game.version;frame=4;}
 				
-				var str='<div id="specialPic" style="position:absolute;left:-16px;top:-64px;width:96px;height:96px;background:url(img/'+pic+');background-position:'+(-frame*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div>';
+				var str='<div id="specialPic" '+Game.clickStr+'="Game.ClickSpecialPic();" style="'+((Game.specialTab=='dragon' && Game.dragonLevel>=4 && Game.Has('Pet the dragon'))?'cursor:pointer;':'')+'position:absolute;left:-16px;top:-64px;width:96px;height:96px;background:url(img/'+pic+');background-position:'+(-frame*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div>';
 				str+='<div class="close" onclick="PlaySound(\'snd/press.mp3\');Game.ToggleSpecialMenu(0);">x</div>';
 				
 				if (Game.specialTab=='santa')
 				{
 					var moni=Math.pow(Game.santaLevel+1,Game.santaLevel+1);
 					
-					str+='<h3>'+Game.santaLevels[Game.santaLevel]+'</h3>';
+					str+='<h3 style="pointer-events:none;">'+Game.santaLevels[Game.santaLevel]+'</h3>';
 					if (Game.santaLevel<14)
 					{
 						str+='<div class="line"></div>'+
@@ -11619,7 +12716,7 @@ Game.Launch=function()
 				{
 					var level=Game.dragonLevels[Game.dragonLevel];
 				
-					str+='<h3>'+level.name+'</h3>';
+					str+='<h3 style="pointer-events:none;">'+level.name+'</h3>';
 					
 					if (Game.dragonLevel>=5)
 					{
@@ -11632,7 +12729,7 @@ Game.Launch=function()
 						,'top')+
 						'></div>';
 					}
-					if (Game.dragonLevel>=23)
+					if (Game.dragonLevel>=25)//2nd aura slot; increased with last building (idleverse)
 					{
 						var icon=Game.dragonAuras[Game.dragonAura2].pic;
 						str+='<div class="crate enabled" style="opacity:1;position:absolute;right:80px;top:-58px;'+(icon[2]?'background-image:url('+icon[2]+');':'')+'background-position:'+(-icon[0]*48)+'px '+(-icon[1]*48)+'px;" '+Game.clickStr+'="PlaySound(\'snd/tick.mp3\');Game.SelectDragonAura(1);" '+Game.getTooltip(
@@ -11742,6 +12839,10 @@ Game.Launch=function()
 			{name:'Rank XV - Cherry milk',pic:'milkCherry',icon:[25,23]},
 			{name:'Rank XVI - Spiced milk',pic:'milkSpiced',icon:[26,23]},
 			{name:'Rank XVII - Maple milk',pic:'milkMaple',icon:[28,23]},
+			{name:'Rank XVIII - Mint milk',pic:'milkMint',icon:[29,23]},
+			{name:'Rank XIX - Licorice milk',pic:'milkLicorice',icon:[30,23]},
+			{name:'Rank XX - Rose milk',pic:'milkRose',icon:[31,23]},
+			{name:'Rank XXI - Dragonfruit milk',pic:'milkDragonfruit',icon:[21,24]},
 		];
 		Game.Milk=Game.Milks[0];
 	
@@ -11880,50 +12981,59 @@ Game.Launch=function()
 				
 				if (Game.drawT%5==0)
 				{
-					Game.defaultBg='bgBlue';
-					Game.bgR=0;
-					
-					if (Game.season=='fools') Game.defaultBg='bgMoney';
-					if (Game.elderWrathD<1)
+					if (false && Game.bgType!=0 && Game.ascensionMode!=1)
 					{
+						//l('backgroundCanvas').style.background='url(img/shadedBordersSoft.png) 0px 0px,url(img/bgWheat.jpg) 50% 50%';
+						//l('backgroundCanvas').style.backgroundSize='100% 100%,cover';
+					}
+					else
+					{
+						l('backgroundCanvas').style.background='transparent';
+						Game.defaultBg='bgBlue';
 						Game.bgR=0;
-						Game.bg=Game.defaultBg;
-						Game.bgFade=Game.defaultBg;
+						
+						if (Game.season=='fools') Game.defaultBg='bgMoney';
+						if (Game.elderWrathD<1)
+						{
+							Game.bgR=0;
+							Game.bg=Game.defaultBg;
+							Game.bgFade=Game.defaultBg;
+						}
+						else if (Game.elderWrathD>=1 && Game.elderWrathD<2)
+						{
+							Game.bgR=(Game.elderWrathD-1)/1;
+							Game.bg=Game.defaultBg;
+							Game.bgFade='grandmas1';
+						}
+						else if (Game.elderWrathD>=2 && Game.elderWrathD<3)
+						{
+							Game.bgR=(Game.elderWrathD-2)/1;
+							Game.bg='grandmas1';
+							Game.bgFade='grandmas2';
+						}
+						else if (Game.elderWrathD>=3)// && Game.elderWrathD<4)
+						{
+							Game.bgR=(Game.elderWrathD-3)/1;
+							Game.bg='grandmas2';
+							Game.bgFade='grandmas3';
+						}
+						
+						if (Game.bgType!=0 && Game.ascensionMode!=1)
+						{
+							Game.bgR=0;
+							Game.bg=Game.BGsByChoice[Game.bgType].pic;
+							Game.bgFade=Game.bg;
+						}
+						
+						Game.Background.fillPattern(Pic(Game.bg+'.jpg'),0,0,Game.Background.canvas.width,Game.Background.canvas.height,512,512,0,0);
+						if (Game.bgR>0)
+						{
+							Game.Background.globalAlpha=Game.bgR;
+							Game.Background.fillPattern(Pic(Game.bgFade+'.jpg'),0,0,Game.Background.canvas.width,Game.Background.canvas.height,512,512,0,0);
+						}
+						Game.Background.globalAlpha=1;
+						Game.Background.drawImage(Pic('shadedBordersSoft.png'),0,0,Game.Background.canvas.width,Game.Background.canvas.height);
 					}
-					else if (Game.elderWrathD>=1 && Game.elderWrathD<2)
-					{
-						Game.bgR=(Game.elderWrathD-1)/1;
-						Game.bg=Game.defaultBg;
-						Game.bgFade='grandmas1';
-					}
-					else if (Game.elderWrathD>=2 && Game.elderWrathD<3)
-					{
-						Game.bgR=(Game.elderWrathD-2)/1;
-						Game.bg='grandmas1';
-						Game.bgFade='grandmas2';
-					}
-					else if (Game.elderWrathD>=3)// && Game.elderWrathD<4)
-					{
-						Game.bgR=(Game.elderWrathD-3)/1;
-						Game.bg='grandmas2';
-						Game.bgFade='grandmas3';
-					}
-					
-					if (Game.bgType!=0 && Game.ascensionMode!=1)
-					{
-						Game.bgR=0;
-						Game.bg=Game.BGsByChoice[Game.bgType].pic;
-						Game.bgFade=Game.bg;
-					}
-					
-					Game.Background.fillPattern(Pic(Game.bg+'.jpg'),0,0,Game.Background.canvas.width,Game.Background.canvas.height,512,512,0,0);
-					if (Game.bgR>0)
-					{
-						Game.Background.globalAlpha=Game.bgR;
-						Game.Background.fillPattern(Pic(Game.bgFade+'.jpg'),0,0,Game.Background.canvas.width,Game.Background.canvas.height,512,512,0,0);
-					}
-					Game.Background.globalAlpha=1;
-					Game.Background.drawImage(Pic('shadedBordersSoft.png'),0,0,Game.Background.canvas.width,Game.Background.canvas.height);
 					
 				}
 				Timer.track('window background');
@@ -12491,6 +13601,8 @@ Game.Launch=function()
 			for (var i in Game.Objects)
 			{
 				var me=Game.Objects[i];
+				me.level=9;
+				me.levelUp();
 				if (me.minigame && me.minigame.onRuinTheFun) me.minigame.onRuinTheFun();
 			}
 			if (!silent)
@@ -12584,11 +13696,11 @@ Game.Launch=function()
 			str+='<a class="option neato" '+Game.clickStr+'="Game.SetAllAchievs(1);">All achievs</a><br>';
 			str+='<a class="option neato" '+Game.clickStr+'="Game.santaLevel=0;Game.dragonLevel=0;">Reset specials</a>';
 			str+='<a class="option neato" '+Game.clickStr+'="Game.MaxSpecials();">Max specials</a><br>';
-			str+='<a class="option neato" '+Game.clickStr+'="Game.lumpRefill=Date.now()-Game.getLumpRefillMax();">Reset refills</a>';
+			str+='<a class="option neato" '+Game.clickStr+'="Game.lumpRefill=0;/*Date.now()-Game.getLumpRefillMax();*/">Reset refills</a>';
 			str+='<a class="option neato" '+Game.clickStr+'="Game.EditAscend();">'+(Game.DebuggingPrestige?'Exit Ascend Edit':'Ascend Edit')+'</a>';
 			str+='<a class="option neato" '+Game.clickStr+'="Game.DebugUpgradeCpS();">Debug upgrades CpS</a>';
 			str+='<a class="option neato" '+Game.clickStr+'="Game.seed=Game.makeSeed();">Re-seed</a>';
-			str+='<a class="option neato" '+Game.clickStr+'="Game.heralds=100;l(\'heraldsAmount\').innerHTML=Game.heralds;Game.externalDataLoaded=true;Game.recalculateGains=1;">Max heralds</a>';
+			str+='<a class="option neato" '+Game.clickStr+'="Game.heralds=100;l(\'heraldsAmount\').textContent=Game.heralds;Game.externalDataLoaded=true;Game.recalculateGains=1;">Max heralds</a>';
 			str+='<div class="line"></div>';
 			for (var i=0;i<Game.goldenCookieChoices.length/2;i++)
 			{
@@ -12670,9 +13782,8 @@ Game.Launch=function()
 		}
 		
 		
+		//Game.runModHook('init');
 		
-		
-		for (var i in Game.customInit) {Game.customInit[i]();}
 		
 		if (!Game.LoadSave())
 		{//try to load the save when we open the page. if this fails, try to brute-force it half a second later
@@ -12746,6 +13857,7 @@ Game.Launch=function()
 			if (Game.milkProgress>=9) Game.Unlock('Kitten assistants to the regional manager');
 			if (Game.milkProgress>=10) Game.Unlock('Kitten marketeers');
 			if (Game.milkProgress>=11) Game.Unlock('Kitten analysts');
+			if (Game.milkProgress>=12) Game.Unlock('Kitten executives');
 			Game.milkH=Math.min(1,Game.milkProgress)*0.35;
 			Game.milkHd+=(Game.milkH-Game.milkHd)*0.02;
 			
@@ -12885,7 +13997,7 @@ Game.Launch=function()
 				if (Game.Has('Basic wallpaper assortment')) Game.Unlock('Background selector');
 				if (Game.Has('Golden cookie alert sound')) Game.Unlock('Golden cookie sound selector');
 				
-				if (Game.Has('Eternal heart biscuits')) Game.Win('Lovely cookies');
+				if (Game.Has('Prism heart biscuits')) Game.Win('Lovely cookies');
 				if (Game.season=='easter')
 				{
 					var eggs=0;
@@ -12899,7 +14011,18 @@ Game.Launch=function()
 					if (eggs>=Game.easterEggs.length) Game.Win('Hide & seek champion');
 				}
 				
-				if (Game.prestige>0 && Game.ascensionMode!=1)
+				if (Game.Has('Fortune cookies'))
+				{
+					var list=Game.Tiers['fortune'].upgrades;
+					var fortunes=0;
+					for (var i in list)
+					{
+						if (Game.Has(list[i].name)) fortunes++;
+					}
+					if (fortunes>=list.length) Game.Win('O Fortuna');
+				}
+				
+				if (Game.Has('Legacy') && Game.ascensionMode!=1)
 				{
 					Game.Unlock('Heavenly chip secret');
 					if (Game.Has('Heavenly chip secret')) Game.Unlock('Heavenly cookie stand');
@@ -12938,6 +14061,8 @@ Game.Launch=function()
 				if (minAmount>=400) {Game.Win('Quadricentennial');Game.Unlock('Royal raspberry chocolate butter biscuit');}
 				if (minAmount>=450) {Game.Win('Quadricentennial and a half');Game.Unlock('Ultra-concentrated high-energy chocolate butter biscuit');}
 				if (minAmount>=500) {Game.Win('Quincentennial');Game.Unlock('Pure pitch-black chocolate butter biscuit');}
+				if (minAmount>=550) {Game.Win('Quincentennial and a half');Game.Unlock('Cosmic chocolate butter biscuit');}
+				if (minAmount>=600) {Game.Win('Sexcentennial');Game.Unlock('Butter biscuit (with butter)');}
 				
 				if (Game.handmadeCookies>=1000) {Game.Win('Clicktastic');Game.Unlock('Plastic mouse');}
 				if (Game.handmadeCookies>=100000) {Game.Win('Clickathlon');Game.Unlock('Iron mouse');}
@@ -12951,6 +14076,7 @@ Game.Launch=function()
 				if (Game.handmadeCookies>=1000000000000000000000) {Game.Win('The ultimate clickdown');Game.Unlock('Armythril mouse');}
 				if (Game.handmadeCookies>=100000000000000000000000) {Game.Win('All the other kids with the pumped up clicks');Game.Unlock('Technobsidian mouse');}
 				if (Game.handmadeCookies>=10000000000000000000000000) {Game.Win('One...more...click...');Game.Unlock('Plasmarble mouse');}
+				if (Game.handmadeCookies>=1000000000000000000000000000) {Game.Win('Clickety split');Game.Unlock('Miraculite mouse');}
 				
 				if (Game.cookiesEarned<Game.cookies) Game.Win('Cheated cookies taste awful');
 				
@@ -12972,12 +14098,26 @@ Game.Launch=function()
 				if (buildingsOwned>=500) Game.Win('Architect');
 				if (buildingsOwned>=1000) Game.Win('Engineer');
 				if (buildingsOwned>=2000) Game.Win('Lord of Constructs');
+				if (buildingsOwned>=4000) Game.Win('Grand design');
+				if (buildingsOwned>=8000) Game.Win('Ecumenopolis');
 				if (Game.UpgradesOwned>=20) Game.Win('Enhancer');
 				if (Game.UpgradesOwned>=50) Game.Win('Augmenter');
 				if (Game.UpgradesOwned>=100) Game.Win('Upgrader');
 				if (Game.UpgradesOwned>=200) Game.Win('Lord of Progress');
-				if (buildingsOwned>=3000 && Game.UpgradesOwned>=300) Game.Win('Polymath');
-				if (buildingsOwned>=4000 && Game.UpgradesOwned>=400) Game.Win('Renaissance baker');
+				if (Game.UpgradesOwned>=300) Game.Win('The full picture');
+				if (Game.UpgradesOwned>=400) Game.Win('When there\'s nothing left to add');
+				if (buildingsOwned>=4000 && Game.UpgradesOwned>=300) Game.Win('Polymath');
+				if (buildingsOwned>=8000 && Game.UpgradesOwned>=400) Game.Win('Renaissance baker');
+				
+				if (!Game.HasAchiev('Jellicles'))
+				{
+					var kittens=0;
+					for (var i=0;i<Game.UpgradesByPool['kitten'].length;i++)
+					{
+						if (Game.Has(Game.UpgradesByPool['kitten'][i].name)) kittens++;
+					}
+					if (kittens>=10) Game.Win('Jellicles');
+				}
 				
 				if (Game.cookiesEarned>=10000000000000 && !Game.HasAchiev('You win a cookie')) {Game.Win('You win a cookie');Game.Earn(1);}
 				
@@ -13008,7 +14148,7 @@ Game.Launch=function()
 				if (!Game.HasAchiev('Cookie-dunker') && Game.LeftBackground && Game.milkProgress>0.1 && (Game.LeftBackground.canvas.height*0.4+256/2-16)>((1-Game.milkHd)*Game.LeftBackground.canvas.height)) Game.Win('Cookie-dunker');
 				//&& l('bigCookie').getBoundingClientRect().bottom>l('milk').getBoundingClientRect().top+16 && Game.milkProgress>0.1) Game.Win('Cookie-dunker');
 				
-				for (var i in Game.customChecks) {Game.customChecks[i]();}
+				Game.runModHook('check');
 			}
 			
 			Game.cookiesd+=(Game.cookies-Game.cookiesd)*0.3;
@@ -13024,9 +14164,8 @@ Game.Launch=function()
 		
 		if (Game.T%(Game.fps*2)==0)
 		{
-			var title='Cookie Clicker';
-			if (Game.season=='fools') title='Cookie Baker';
-			document.title=(Game.OnAscend?'Ascending! ':'')+Beautify(Game.cookies)+' '+(Game.cookies==1?'cookie':'cookies')+' - '+title;
+			var title='Dashboard';
+			document.title=title;
 		}
 		if (Game.T%15==0)
 		{
@@ -13061,14 +14200,7 @@ Game.Launch=function()
 			
 			if (ascendNowToGet>0)//show number saying how many chips you'd get resetting now
 			{
-				var str=ascendNowToGet.toString();
-				var str2='';
-				for (var i in str)//add commas
-				{
-					if ((str.length-i)%3==0 && i>0) str2+=',';
-					str2+=str[i];
-				}
-				Game.ascendNumber.innerHTML='+'+str2;
+				Game.ascendNumber.textContent='+'+SimpleBeautify(ascendNowToGet);
 				Game.ascendNumber.style.display='block';
 			}
 			else
@@ -13087,7 +14219,8 @@ Game.Launch=function()
 			//if (Game.ascendMeterPercentT<Game.ascendMeterPercent) {Game.ascendMeterPercent=0;PlaySound('snd/levelPrestige.mp3',0.5);}
 			//if (percent>=1) {Game.ascendMeter.className='';} else Game.ascendMeter.className='filling';
 		}
-		Game.ascendMeter.style.right=Math.floor(Math.max(0,1-Game.ascendMeterPercent)*100)+'px';
+		//Game.ascendMeter.style.right=Math.floor(Math.max(0,1-Game.ascendMeterPercent)*100)+'px';
+		Game.ascendMeter.style.transform='translate('+Math.floor(-Math.max(0,1-Game.ascendMeterPercent)*100)+'px,0px)';
 		Game.ascendMeterPercent+=(Game.ascendMeterPercentT-Game.ascendMeterPercent)*0.1;
 		
 		Game.NotesLogic();
@@ -13099,7 +14232,7 @@ Game.Launch=function()
 		if (Game.ReincarnateTimer>0) Game.UpdateReincarnateIntro();
 		if (Game.OnAscend) Game.UpdateAscend();
 		
-		for (var i in Game.customLogic) {Game.customLogic[i]();}
+		Game.runModHook('logic');
 		
 		if (Game.sparklesT>0)
 		{
@@ -13171,7 +14304,7 @@ Game.Launch=function()
 			for (var i in Game.Objects)
 			{
 				var me=Game.Objects[i];
-				if (me.onMinigame && me.minigame.draw && !me.muted) me.minigame.draw();
+				if (me.onMinigame && me.minigame.draw && !me.muted && !Game.onMenu) me.minigame.draw();
 			}
 			Timer.track('draw minigames');
 			
@@ -13242,7 +14375,7 @@ Game.Launch=function()
 		Game.NotesDraw();Timer.track('notes');
 		//Game.tooltip.update();//changed to only update when the mouse is moved
 		
-		for (var i in Game.customDraw) {Game.customDraw[i]();}
+		Game.runModHook('draw');
 		
 		Game.drawT++;
 		//if (Game.prefs.altDraw) requestAnimationFrame(Game.Draw);
@@ -13311,7 +14444,7 @@ Game.Launch=function()
 				ctx.lineTo(128,(1-Game.currentFps/Game.fps)*64);
 				ctx.stroke();
 			
-			l('fpsCounter').innerHTML=Game.currentFps+' fps';
+			l('fpsCounter').textContent=Game.currentFps+' fps';
 			var str='';
 			for (var i in Timer.labels) {str+=Timer.labels[i];}
 			if (Game.debugTimersOn) l('debugLog').style.display='block';
