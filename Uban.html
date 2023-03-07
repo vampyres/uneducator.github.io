@@ -32,7 +32,7 @@
 	<p>Please enter the correct password to proceed:</p>
 	<form>
 		<input type="password" id="password">
-		<button type="button" onclick="checkPassword()">Submit</button>
+		<button type="button" onclick="checkPassword()">Submit (CLICK ME! DONT PRESS ENTER!)</button>
 	</form>
 
 	<script>
@@ -40,9 +40,7 @@
 			var password = document.getElementById("password").value;
 			if (password == "Xhah") {
 				localStorage.removeItem("banned");
-				alert("You have been unbanned!");
-			} else {
-				alert("Incorrect password, please try again.");
+				window.location.href = 'index.html';
 			}
 		}
 	</script>
