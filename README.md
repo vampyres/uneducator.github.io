@@ -1,1 +1,8 @@
-Uneducator is a website that is designed, to help students when presented with boredom in class; we provide many games, bookmarklets, a minimalistic UI and aim to never leave our users. We will always find vunerabilities in school blocks and we will never be unaccessible.
+
+# Uneducator
+Uneducator is a  website designed to entertain students when necessary. This website was made for students by students so many aspects are optimised for use.
+
+
+## Password
+
+The Password to access the website is just 123. It is ment to be a red herring to teachers.

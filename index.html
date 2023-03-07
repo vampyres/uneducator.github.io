@@ -1,184 +1,117 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>uneducator</title>
+<html lang="en">
+
+<head>
     <style>
-      
-	   .loader {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-      }
-      .loader svg {
-        width: 100px;
-        height: 100px;
-      }
-      .loader polygon {
-        fill: black;
-      }  
-	    
-        body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background-color: #333;
-        overflow: hidden;
-      }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap');
 
-      canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'poppins', sans-serif;
+        }
 
-      #button-container {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-      }
+        section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+            background: url('background6.jpg') no-repeat;
+            background-position: center;
+            background-size: cover;
+        }
 
-      button {
-        background-color: #fff;
-        color: #333;
-        font-size: 24px;
-        padding: 20px 40px;
-        border-radius: 50px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease-in-out;
-      }
+        .form-box {
+            position: relative;
+            width: 400px;
+            height: 450px;
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
 
-      button:hover {
-        background-color: #333;
-        color: #fff;
-        transform: scale(1.1);
-      }
-	    
+        h2 {
+            font-size: 2em;
+            color: #fff;
+            text-align: center;
+            height: auto;
+        }
 
-	    
+        h1 {
+            font-size: 2em;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        main p {
+            font-size: 18px;
+            color: #fff;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 40px;
+            height: 100%;
+        }
+
+        a {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 12px 40px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        button {
+            width: 90%;
+            height: 60px;
+            border-radius: 40px;
+            background: #fff;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 2em;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
     </style>
-  </head>
+</head>
 
-  <body>
-    <canvas id="background"></canvas>
-    <div id="button-container">
-      <button onclick="window.location.href='homepage/index.html'">uneducator</button>
-    </div>
-
+<body>
+    <section>
+        <div class="section">
+            <div class="form-box">
+                <button id="2dre">homepage</button>
+                <button id="ban-btn">Teacher? Click 'ere!</button>
+            </div>
+        </div>
+    </section>
     <script>
-      // Polygonal Background
-      var canvas = document.getElementById("background");
-      var context = canvas.getContext("2d");
+        const banButton = document.getElementById('ban-btn');
+        const dre = document.getElementById('2dre');
 
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+        banButton.addEventListener('click', function () {
+            localStorage.setItem('banned', 'true');
+            window.location.href = 'ban.html';
+        });
 
-      var polygons = [];
-      var numPolygons = 69;
+        dre.addEventListener('click', function () {
+            window.location.href = 'home.html';
+        });
 
-      for (var i = 0; i < numPolygons; i++) {
-        var x = Math.random() * canvas.width;
-        var y = Math.random() * canvas.height;
-        var sides = Math.round(Math.random() * 4) + 3;
-        var radius = Math.random() * 50 + 60;
-        var color = "rgba(" + Math.floor(Math.random() * 255) + "," + Math.floor(Math.random() * 255) + "," + Math.floor(Math.random() * 255) + "," + Math.random() + ")";
-        polygons.push(new Polygon(x, y, sides, radius, color));
-      }
 
-      function Polygon(x, y, sides, radius, color) {
-        this.x = x;
-        this.y = y;
-        this.sides = sides;
-        this.radius = radius;
-        this.color = color;
-        this.rotation = Math.random() * Math.PI * 2;
-        this.velocity = Math.random() * 0.05 + 0.025;
-
-        this.draw = function() {
-          context.beginPath();
-          context.moveTo(this.x + this.radius * Math.cos(this.rotation), this.y + this.radius * Math.sin(this.rotation));
-
-          for (var i = 1; i < this.sides; i++) {
-            var angle = this.rotation + i * (Math.PI * 2 / this.sides);
-            context.lineTo(this.x + this.radius * Math.cos(angle), this.y + this.radius * Math.sin(angle));
-          }
-
-          context.closePath();
-          context.fillStyle = this.color;
-          context.fill();
-        }
-
-        this.update = function() {
-          this.rotation += this.velocity;
-        }
-
-        this.mouseOver = function(x, y) {
-          var distance = Math.sqrt(Math.pow(x - this.x, 2) + Math.pow(y - this.y, 2));
-          return distance <= this.radius;
-        }
-      }
-
-function drawBackground() {
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  
-  for (var i = 0; i < numPolygons; i++) {
-    polygons[i].draw();
-  }
-}
-
-function update() {
-  for (var i = 0; i < numPolygons; i++) {
-    polygons[i].update();
-  }
-}
-
-function checkMousePosition(event) {
-  var rect = canvas.getBoundingClientRect();
-  var mouseX = event.clientX - rect.left;
-  var mouseY = event.clientY - rect.top;
-  
-  for (var i = 0; i < numPolygons; i++) {
-    if (polygons[i].mouseOver(mouseX, mouseY)) {
-      polygons[i].color = "rgba(255, 255, 255, 1)";
-    } else {
-      polygons[i].color = "rgba(255, 255, 255, 0.5)";
-    }
-  }
-}
-
-canvas.addEventListener("mousemove", checkMousePosition, false);
-      
-            // Mouse Interaction
-      canvas.addEventListener("mousemove", function(event) {
-        for (var i = 0; i < polygons.length; i++) {
-          if (polygons[i].mouseOver(event.clientX, event.clientY)) {
-            polygons[i].radius = Math.random() * 50 + 100;
-          } else {
-            polygons[i].radius = Math.random() * 50 + 50;
-          }
-        }
-      });
-
-      // Animation Loop
-      function animate() {
-        requestAnimationFrame(animate);
-
-        context.clearRect(0, 0, canvas.width, canvas.height);
-
-        for (var i = 0; i < polygons.length; i++) {
-          polygons[i].update();
-          polygons[i].draw();
-        }
-      }
-
-      animate();
     </script>
+    <script src="auth.js"></script>
+</body>
 
-  </body>
 </html>
-

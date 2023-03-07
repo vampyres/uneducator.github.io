@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Video Player</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+        }
+
+        video {
+            width: 95%;
+            height: 95%;
+            object-fit: contain;
+        }
+
+        .link-container {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .link-container a {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 12px 40px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: all 0.3s ease-in-out;
+            background-color: #00aeef;
+            text-decoration: none;
+        }
+
+        .link-container a:hover {
+            background-color: #0076a3;
+        }
+    </style>
+</head>
+
+<body>
+    <iframe width="560" height="315" src="https://www.fembed.com/v/p65g1dsmjzg2jgwz" frameborder="0" allowfullscreen></iframe>
+    <div class="link-container">
+        <a href="/home.html">Go to Homepage</a>
+    </div>
+</body>
+
+</html>

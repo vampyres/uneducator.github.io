@@ -1,136 +1,232 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Uneducator</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<head>
+    <meta charset="UTF-8">
+    <title>bookmarklets</title>
+    <link rel="icon" type="image/png" href="logo.png">
     <style>
-      /* Global styles */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+        .button {
+            width: 100%;
+            height: 40px;
+            border-radius: 40px;
+            background: #fff;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: black;
+            /* Add this line to set the text color to black */
+        }
 
-      body {
-        font-family: sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        background-color: #000;
-        color: #fff;
-      }
 
-      /* Header styles */
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        background-color: #fff;
-        color: #000;
-      }
+        main {
+            height: calc(100vh - 60px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
 
-      header h1 {
-        font-size: 24px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-      /* Main content styles */
-      main {
-        height: calc(100vh - 60px);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background: linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%);
-        background-size: 20px 20px;
-        background-color: #000;
-      }
+        body {
+            background-image: url("background6.jpg");
+            background-size: cover;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-      main h2 {
-        font-size: 36px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-      }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap');
 
-      main p {
-        font-size: 18px;
-        max-width: 600px;
-        text-align: center;
-        margin-bottom: 40px;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'poppins', sans-serif;
+        }
 
-      main a {
-        display: inline-block;
-        margin-bottom: 20px;
-        padding: 12px 40px;
-        background-color: #fff;
-        color: #000;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        text-align: center;
-        font-weight: bold;
-        border-radius: 50px;
-        transition: all 0.3s ease-in-out;
-      }
+        section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
 
-      main a:hover {
-        transform: scale(1.1);
-        background-color: #000;
-        color: #fff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-      }
-      
-      .circle-btn {
-  display: inline-block;
-  width: 75px;
-  height: 50px;
-  border-radius: 50%;
-  background-color: #ccc;
-  color: #000;
-  text-align: center;
-  line-height: 50px;
-  text-decoration: none;
-  transition: all 0.3s ease;
-}
+            background: url('background6.jpg')no-repeat;
+            background-position: center;
+            background-size: cover;
+        }
 
-.circle-btn:hover {
-  background-color: #aaa;
-  color: #fff;
-}
-      
+        h2 {
+            font-size: 2em;
+            color: #fff;
+            text-align: center;
+            height: auto;
+        }
+
+        button {
+            height: 40px;
+            border-radius: 40px;
+            background: #fff;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: black;
+            display: inline-block;
+            /* Remove width property */
+        }
+
+        h1 {
+            font-size: 2em;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        main p {
+            font-size: 18px;
+            color: #fff;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 40px;
+            height: 100%;
+        }
+
+        a {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 12px 40px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .section_box {
+            position: relative;
+            width: 80vw;
+            height: 80vh;
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            box-sizing: border-box;
+
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h2,
+        p {
+            width: 100%;
+            text-align: center;
+        }
+
+        .button {
+            width: auto;
+            height: 40px;
+            border-radius: 40px;
+            background: #fff;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: black;
+            display: inline-block;
+            /* Remove width property */
+        }
+
+
+        .conthead {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+
+        .circular_button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50px;
+            height: 50px;
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        .circular_button i {
+            font-size: 24px;
+            margin-left: 1px;
+        }
     </style>
-  </head>
-  <body>
-    <header>
-    <h1>Uneducator</h1>
-            <li><a href="/playin.html" style="color: black; font-weight: bold;">Play</a></li>
-      <li><a href="/bookmarklet.html" style="color: black; font-weight: bold;">BookMarklets</a></li>
-      <nav>
-        <ul>
-        </ul>
-      </nav>
-    </header>
-    <main>
-     <h2>BookMarklets</h2>
-     <p>Simply drag and drop these onto your bookmark bar and click them to use them.</p>
-    
-<div class="button-wrapper">
-<a href="javascript:(function(){ window.location.href = 'https://www.google.com/'; })();">Go to Google.Com</a>
-<a href="javascript:(function(){javascript:(function () {if (window.location.toString().includes('www.youtube.com/watch?v%27)) { window.open(%27https://www.youtube-nocookie.com/embed/%27 + window.location.toString().split(%27=%27)[1]) }})()})();">Youtube Unblocker (May not work)</a>
-<a href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/eaglercraft'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='700px'; frame.style.width='1400px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();"> Minecraft Embed'er </a>
-</div>
-  
-  <div class = "button-wrapper">
-    <a href="javascript:(function () {var title=prompt('Enter title name');var icon=prompt('Enter icon link (or nearpod, canvas, studysync, or docs)');var link=document.querySelector(&quot;link[rel*='icon']&quot;) || document.createElement('link');link.type='image/x-icon';link.rel='shortcut icon';if(icon=='canvas'){icon='https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico'}if(icon=='docs'){icon='https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico'}if(icon=='nearpod'){icon='https://cdn.nearpod.com/favicon.ico'}if(icon=='studysync'){icon='https://www.studysync.com/static/favicon.ico'}link.href=icon;document.title=title;document.getElementsByTagName('head')[0].appendChild(link);})();"> Tab Cloak </a>
-    <a href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/play/1v1/index.html'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='700px'; frame.style.width='1400px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();"> 1V1.lÖl Embed'er </a>
-    <a href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='900px'; frame.style.width='1300px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();"> Uneducator Embed'er </a>
-    </div->
-      
-  <a href="/suggestionpage.html" class="circular-button" title="Suggest" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999;">Suggest</a>
-      <a href="https://google.com" class="circular-button" title="Hide" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">Hide</a>
-    </main>
-  </body>
+</head>
+
+<body>
+    <section>
+        <div class="section_box">
+            <a href="/premium/home.html" class="circular_button">home</a>
+            <div class="container">
+                <h2>bookmarklets</h2>
+                <a style="margin-bottom: 30px;">Simply drag and drop these onto your bookmark bar and click them to use
+                    them.</a>
+
+                <div>
+                    <a class="button"
+                        href="javascript:(function(){ window.location.href = 'https://www.google.com/'; })();">Go to
+                        Google.Com</a>
+                    <a class="button"
+                        href="javascript:(function(){javascript:(function () {if (window.location.toString().includes('www.youtube.com/watch?v%27)) { window.open(%27https://www.youtube-nocookie.com/embed/%27 + window.location.toString().split(%27=%27)[1]) }})()})();">Youtube
+                        Unblocker (May not work)</a>
+                    <a class="button"
+                        href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/eaglercraft'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='700px'; frame.style.width='1400px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();">
+                        Minecraft Embed'er </a>
+                </div>
+
+                <div>
+                    <a class="button"
+                        href="javascript:(function () {var title=prompt('Enter title name');var icon=prompt('Enter icon link (or nearpod, canvas, studysync, or docs)');var link=document.querySelector(&quot;link[rel*='icon']&quot;) || document.createElement('link');link.type='image/x-icon';link.rel='shortcut icon';if(icon=='canvas'){icon='https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico'}if(icon=='docs'){icon='https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico'}if(icon=='nearpod'){icon='https://cdn.nearpod.com/favicon.ico'}if(icon=='studysync'){icon='https://www.studysync.com/static/favicon.ico'}link.href=icon;document.title=title;document.getElementsByTagName('head')[0].appendChild(link);})();">
+                        Tab Cloak </a>
+                    <a class="button"
+                        href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/play/1v1/index.html'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='700px'; frame.style.width='1400px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();">
+                        1V1.lÖl Embed'er </a>
+                    <a class="button"
+                        href="javascript:(function(){ var frame = document.createElement('iframe'); frame.src='https://uneducator.github.io/'; frame.style.position='fixed'; frame.style.top='5%'; frame.style.right='0%'; frame.style.height='900px'; frame.style.width='1300px'; frame.style.zIndex='100000'; document.body.appendChild(frame); var btn= document.createElement('button'); btn.style.position='fixed'; btn.style.top='5%'; btn.style.right='25%'; btn.zIndex='100000'; innerHTML='HIDE'; document.body.appendChild(btn); })();">
+                        Uneducator Embed'er </a>
+                    </div->
+                </div>
+            </div>
+    </section>
+    <script src="auth.js"></script>
+</body>
+
 </html>
